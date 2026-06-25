@@ -4,7 +4,18 @@ import db from '@/lib/db';
 export async function GET(request: NextRequest) {
   try {
     const { searchParams } = new URL(request.url);
+    const id = searchParams.get('id');
     const status = searchParams.get('status');
+
+    if (id) {
+      const game = db.prepare(`
+        SELECT g.*, p.name as creator_name
+        FROM games g
+        JOIN players p ON g.created_by = p.id
+        WHERE g.id = ?
+      `).get(id);
+      return NextResponse.json(game);
+    }
 
     let query = `
       SELECT g.*, p.name as creator_name

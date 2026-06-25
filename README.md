@@ -26,6 +26,11 @@ Track your Minnesota Wild skins pool games with friends!
 
 ## Getting Started
 
+### Prerequisites
+
+- Node.js 20.9.0 or higher
+- npm or yarn
+
 ### Local Development
 
 ```bash
