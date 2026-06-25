@@ -1,36 +1,81 @@
-This is a [Next.js](https://nextjs.org) project bootstrapped with [`create-next-app`](https://nextjs.org/docs/app/api-reference/cli/create-next-app).
+# 🏒 Hockey Skins Tracker
+
+Track your Minnesota Wild skins pool games with friends!
+
+## Features
+
+- **Game Creation**: Any player can create a game and invite others
+- **Draft System**: Rotating draft order ensures fairness
+- **Live Scoring**: Updates after each period (1st, 2nd, 3rd, OT, SO)
+- **Skins Tracking**: 
+  - Forward goal = 1 skin
+  - Defenseman goal = 2 skins
+  - Goalie starts with 2 skins, -1 per goal against
+  - Win pick = 2 skins (if Wild wins)
+- **Season Leaderboard**: Track total skins across all games
+- **Payment Tracking**: Know who owes what with optimal settlement
+- **NHL API Integration**: Automatic lineup pulls from NHL Stats API
+
+## Tech Stack
+
+- **Framework**: Next.js 16 (App Router)
+- **Database**: PostgreSQL (Railway) / SQLite (local)
+- **Styling**: Tailwind CSS
+- **Icons**: Lucide React
+- **Deployment**: Railway
 
 ## Getting Started
 
-First, run the development server:
+### Local Development
 
 ```bash
+# Install dependencies
+npm install
+
+# Run development server
 npm run dev
-# or
-yarn dev
-# or
-pnpm dev
-# or
-bun dev
 ```
 
-Open [http://localhost:3000](http://localhost:3000) with your browser to see the result.
+Open [http://localhost:3000](http://localhost:3000)
 
-You can start editing the page by modifying `app/page.tsx`. The page auto-updates as you edit the file.
+### Environment Variables
 
-This project uses [`next/font`](https://nextjs.org/docs/app/building-your-application/optimizing/fonts) to automatically optimize and load [Geist](https://vercel.com/font), a new font family for Vercel.
+Create `.env.local`:
 
-## Learn More
+```env
+# Optional: PostgreSQL connection string (uses SQLite if not provided)
+DATABASE_URL=postgresql://...
 
-To learn more about Next.js, take a look at the following resources:
+# Admin password
+ADMIN_PASSWORD=your_password_here
+```
 
-- [Next.js Documentation](https://nextjs.org/docs) - learn about Next.js features and API.
-- [Learn Next.js](https://nextjs.org/learn) - an interactive Next.js tutorial.
+## Deployment
 
-You can check out [the Next.js GitHub repository](https://github.com/vercel/next.js) - your feedback and contributions are welcome!
+Deploy to Railway:
 
-## Deploy on Vercel
+1. Push code to GitHub
+2. Connect repository to Railway
+3. Add PostgreSQL database
+4. Set environment variables
+5. Deploy!
 
-The easiest way to deploy your Next.js app is to use the [Vercel Platform](https://vercel.com/new?utm_medium=default-template&filter=next.js&utm_source=create-next-app&utm_campaign=create-next-app-readme) from the creators of Next.js.
+## How to Play
 
-Check out our [Next.js deployment documentation](https://nextjs.org/docs/app/building-your-application/deploying) for more details.
+1. **Create Game**: Select upcoming Wild game, set pot amount
+2. **Draft**: Players take turns picking Wild players or "Win"
+3. **Track**: Scores update after each period
+4. **Win**: Most skins wins the pot!
+
+## Scoring Rules
+
+- Forward goal: **1 skin**
+- Defenseman goal: **2 skins**
+- Goalie: Starts with **2 skins**, loses 1 per goal against
+- Win pick: **2 skins** if Wild wins
+- Assists & empty net goals: **0 skins**
+- OT/SO goals count normally
+
+## License
+
+MIT
