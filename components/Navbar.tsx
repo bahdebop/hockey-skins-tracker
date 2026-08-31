@@ -2,16 +2,19 @@
 
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
-import { Home, Trophy, Target, DollarSign, Settings } from 'lucide-react';
+import { Home, Trophy, Target, DollarSign, Settings, User, Users, LogIn } from 'lucide-react';
+import { useAuth } from '@/lib/AuthContext';
 
 export default function Navbar() {
   const pathname = usePathname();
+  const { user } = useAuth();
 
   const links = [
     { href: '/', label: 'Home', icon: Home },
     { href: '/games', label: 'Games', icon: Target },
     { href: '/leaderboard', label: 'Leaderboard', icon: Trophy },
     { href: '/balance', label: 'Balance', icon: DollarSign },
+    { href: '/players', label: 'Players', icon: Users },
     { href: '/admin', label: 'Admin', icon: Settings },
   ];
 
@@ -23,7 +26,7 @@ export default function Navbar() {
             🏒 Hockey Skins
           </Link>
           
-          <div className="flex gap-1 md:gap-2">
+          <div className="flex gap-1 md:gap-2 items-center">
             {links.map(({ href, label, icon: Icon }) => {
               const isActive = pathname === href;
               return (
@@ -41,6 +44,32 @@ export default function Navbar() {
                 </Link>
               );
             })}
+            
+            {user ? (
+              <Link
+                href="/profile"
+                className={`flex items-center gap-2 px-3 md:px-4 py-2 rounded-lg transition-colors ${
+                  pathname === '/profile'
+                    ? 'bg-green-600 text-white'
+                    : 'text-gray-300 hover:bg-gray-800 hover:text-white'
+                }`}
+              >
+                <User className="w-4 h-4" />
+                <span className="hidden sm:inline">{user.name}</span>
+              </Link>
+            ) : (
+              <Link
+                href="/login"
+                className={`flex items-center gap-2 px-3 md:px-4 py-2 rounded-lg transition-colors ${
+                  pathname === '/login'
+                    ? 'bg-green-600 text-white'
+                    : 'text-gray-300 hover:bg-gray-800 hover:text-white'
+                }`}
+              >
+                <LogIn className="w-4 h-4" />
+                <span className="hidden sm:inline">Login</span>
+              </Link>
+            )}
           </div>
         </div>
       </div>

@@ -1,7 +1,13 @@
 export interface Player {
   id: number;
   name: string;
+  email?: string;
+  phone?: string;
+  password_hash?: string;
+  venmo_username?: string;
+  paypal_email?: string;
   created_at: string;
+  updated_at?: string;
 }
 
 export interface Game {

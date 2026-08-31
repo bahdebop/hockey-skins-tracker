@@ -20,7 +20,13 @@ function initializeDatabase() {
       CREATE TABLE IF NOT EXISTS players (
         id SERIAL PRIMARY KEY,
         name TEXT NOT NULL UNIQUE,
-        created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+        email TEXT UNIQUE,
+        phone TEXT,
+        password_hash TEXT,
+        venmo_username TEXT,
+        paypal_email TEXT,
+        created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+        updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
       );
       CREATE TABLE IF NOT EXISTS games (
         id SERIAL PRIMARY KEY,
@@ -94,7 +100,13 @@ function initializeDatabase() {
       CREATE TABLE IF NOT EXISTS players (
         id INTEGER PRIMARY KEY AUTOINCREMENT,
         name TEXT NOT NULL UNIQUE,
-        created_at DATETIME DEFAULT CURRENT_TIMESTAMP
+        email TEXT UNIQUE,
+        phone TEXT,
+        password_hash TEXT,
+        venmo_username TEXT,
+        paypal_email TEXT,
+        created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+        updated_at DATETIME DEFAULT CURRENT_TIMESTAMP
       );
       CREATE TABLE IF NOT EXISTS games (
         id INTEGER PRIMARY KEY AUTOINCREMENT,

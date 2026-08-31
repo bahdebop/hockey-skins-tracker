@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import db from '@/lib/db';
+import { eventManager } from '@/lib/eventManager';
 
 export async function GET(request: NextRequest) {
   try {
@@ -52,8 +53,29 @@ export async function PUT(request: NextRequest) {
     const body = await request.json();
     const { id, goals } = body;
 
+    // Get old goals count for comparison
+    const oldPlayer: any = db.prepare('SELECT * FROM hockey_players WHERE id = ?').get(id);
+    const oldGoals = oldPlayer?.goals || 0;
+
     db.prepare('UPDATE hockey_players SET goals = ? WHERE id = ?').run(goals, id);
-    const player = db.prepare('SELECT * FROM hockey_players WHERE id = ?').get(id);
+    const player: any = db.prepare('SELECT * FROM hockey_players WHERE id = ?').get(id);
+    
+    // Broadcast goal update if goals increased
+    if (player && goals > oldGoals) {
+      const goalDiff = goals - oldGoals;
+      const skinsPerGoal = player.position === 'F' ? 1 : player.position === 'D' ? 2 : -1;
+      const skinsChange = player.position === 'G' ? -goalDiff : goalDiff * skinsPerGoal;
+      
+      eventManager.broadcast(player.game_id.toString(), 'goal_scored', {
+        playerId: player.id,
+        playerName: player.name,
+        position: player.position,
+        goals: player.goals,
+        goalDiff,
+        skinsChange,
+        timestamp: Date.now(),
+      });
+    }
     
     return NextResponse.json(player);
   } catch (error) {

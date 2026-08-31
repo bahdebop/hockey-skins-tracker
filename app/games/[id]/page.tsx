@@ -5,6 +5,7 @@ import { useParams, useRouter } from 'next/navigation';
 import { ArrowLeft, Users, Calendar, DollarSign, Trophy, Clock } from 'lucide-react';
 import Link from 'next/link';
 import { Game, Player, HockeyPlayer, Pick } from '@/lib/types';
+import ScoreNotification from '@/components/ScoreNotification';
 
 export default function GamePage() {
   const params = useParams();
@@ -17,9 +18,48 @@ export default function GamePage() {
   const [picks, setPicks] = useState<Pick[]>([]);
   const [loading, setLoading] = useState(true);
   const [draftOrder, setDraftOrder] = useState<number[]>([]);
+  const [notification, setNotification] = useState<any>(null);
 
   useEffect(() => {
     fetchGameData();
+  }, [gameId]);
+
+  // SSE connection for real-time updates
+  useEffect(() => {
+    if (!gameId) return;
+
+    const eventSource = new EventSource(`/api/events/${gameId}`);
+
+    eventSource.onmessage = (event) => {
+      try {
+        const message = JSON.parse(event.data);
+        
+        if (message.event === 'goal_scored') {
+          // Show notification
+          setNotification({
+            id: `${message.data.playerId}-${message.data.timestamp}`,
+            playerName: message.data.playerName,
+            position: message.data.position,
+            goals: message.data.goals,
+            skinsChange: message.data.skinsChange,
+          });
+
+          // Refresh game data to show updated scores
+          fetchGameData();
+        }
+      } catch (error) {
+        console.error('Error parsing SSE message:', error);
+      }
+    };
+
+    eventSource.onerror = (error) => {
+      console.error('SSE error:', error);
+      eventSource.close();
+    };
+
+    return () => {
+      eventSource.close();
+    };
   }, [gameId]);
 
   const fetchGameData = async () => {
@@ -324,6 +364,11 @@ export default function GamePage() {
           </div>
         </div>
       </div>
+
+      <ScoreNotification
+        notification={notification}
+        onClose={() => setNotification(null)}
+      />
     </div>
   );
 }
