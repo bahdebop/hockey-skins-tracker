@@ -169,28 +169,42 @@ function initializeDatabase() {
   }
 }
 
+interface Statement {
+  get: (...params: any[]) => any;
+  all: (...params: any[]) => any[];
+  run: (...params: any[]) => { lastInsertRowid: number | bigint; changes: number };
+}
+
+function toPgSql(sql: string): string {
+  let i = 0;
+  return sql.replace(/\?/g, () => `$${++i}`);
+}
+
 const db = {
-  prepare: (sql: string) => {
+  prepare: (sql: string): Statement => {
     initializeDatabase();
-    
+
     if (usePostgres) {
+      const pgSql = /^\s*INSERT\s/i.test(sql) && !/RETURNING/i.test(sql)
+        ? `${sql.replace(/;?\s*$/, '')} RETURNING id`
+        : toPgSql(sql);
       return {
         get: async (...params: any[]) => {
-          const result = await postgres!.query(sql.replace(/\?/g, (_, i) => `$${i + 1}`), params);
+          const result = await postgres!.query(toPgSql(pgSql), params);
           return result.rows[0] || null;
         },
         all: async (...params: any[]) => {
-          const result = await postgres!.query(sql.replace(/\?/g, (_, i) => `$${i + 1}`), params);
+          const result = await postgres!.query(toPgSql(pgSql), params);
           return result.rows;
         },
         run: async (...params: any[]) => {
-          const result = await postgres!.query(sql.replace(/\?/g, (_, i) => `$${i + 1}`), params);
+          const result = await postgres!.query(toPgSql(pgSql), params);
           return { lastInsertRowid: result.rows[0]?.id || 0, changes: result.rowCount || 0 };
         },
-      };
+      } as unknown as Statement;
     } else {
       const stmt = sqlite!.prepare(sql);
-      return stmt;
+      return stmt as unknown as Statement;
     }
   },
 };
