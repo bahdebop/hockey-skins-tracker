@@ -19,7 +19,7 @@ Track your Minnesota Wild skins pool games with friends!
 ## Tech Stack
 
 - **Framework**: Next.js 16 (App Router)
-- **Database**: PostgreSQL (Railway) / SQLite (local)
+- **Database**: SQLite (file-based, works locally and on Railway via a mounted volume)
 - **Styling**: Tailwind CSS
 - **Icons**: Lucide React
 - **Deployment**: Railway
@@ -48,8 +48,8 @@ Open [http://localhost:3000](http://localhost:3000)
 Create `.env.local`:
 
 ```env
-# Optional: PostgreSQL connection string (uses SQLite if not provided)
-DATABASE_URL=postgresql://...
+# JWT secret for auth sessions (generate a random string)
+JWT_SECRET=your-super-secret-jwt-key
 
 # Admin password
 ADMIN_PASSWORD=your_password_here
@@ -61,9 +61,14 @@ Deploy to Railway:
 
 1. Push code to GitHub
 2. Connect repository to Railway
-3. Add PostgreSQL database
-4. Set environment variables
+3. Add a Railway **Volume** mounted at `/data` (persists the SQLite DB across deploys)
+4. Set environment variables:
+   - `JWT_SECRET` (generate a strong random string)
+   - `RAILWAY_VOLUME_MOUNT_PATH=/data`
+   - `ADMIN_PASSWORD` (optional)
 5. Deploy!
+
+> Note: `DATABASE_URL` / PostgreSQL is not currently supported — do not set it.
 
 ## How to Play
 

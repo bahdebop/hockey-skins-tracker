@@ -95,8 +95,9 @@ Required for production:
 # JWT Secret (REQUIRED - change this!)
 JWT_SECRET=your-super-secret-jwt-key-change-this-in-production
 
-# Database (optional - uses SQLite if not provided)
-DATABASE_URL=postgresql://...
+# NOTE: Do NOT set DATABASE_URL - PostgreSQL is not supported yet.
+# The app uses SQLite (hockey-skins.db). On Railway, set
+# RAILWAY_VOLUME_MOUNT_PATH to your mounted volume path (e.g. /data)
 
 # Admin password
 ADMIN_PASSWORD=your-admin-password
@@ -126,10 +127,11 @@ New fields added to `players` table:
 **Setup**
 1. Push code to GitHub
 2. Connect to Railway
-3. Add PostgreSQL database
+3. Add a Railway Volume mounted at `/data` (persists the SQLite database)
 4. Set environment variables:
    - `JWT_SECRET` (generate a strong random string)
-   - `DATABASE_URL` (auto-set by Railway)
+   - `RAILWAY_VOLUME_MOUNT_PATH=/data`
+   - `ADMIN_PASSWORD` (optional)
 5. Deploy!
 
 **SSE Compatibility**

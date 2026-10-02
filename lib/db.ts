@@ -13,10 +13,14 @@ function initializeDatabase() {
   initialized = true;
 
   if (usePostgres) {
+    throw new Error(
+      'DATABASE_URL is set, but PostgreSQL is not supported yet: API routes call the db synchronously while the Postgres adapter is async. Unset DATABASE_URL to use SQLite.'
+    );
+    // eslint-disable-next-line no-unreachable
     console.log('🐘 Using PostgreSQL');
     postgres = new Pool({ connectionString: process.env.DATABASE_URL });
-    
-    postgres.query(`
+
+    (postgres as Pool).query(`
       CREATE TABLE IF NOT EXISTS players (
         id SERIAL PRIMARY KEY,
         name TEXT NOT NULL UNIQUE,
@@ -190,15 +194,15 @@ const db = {
         : toPgSql(sql);
       return {
         get: async (...params: any[]) => {
-          const result = await postgres!.query(toPgSql(pgSql), params);
+          const result = await (postgres as Pool).query(toPgSql(pgSql), params);
           return result.rows[0] || null;
         },
         all: async (...params: any[]) => {
-          const result = await postgres!.query(toPgSql(pgSql), params);
+          const result = await (postgres as Pool).query(toPgSql(pgSql), params);
           return result.rows;
         },
         run: async (...params: any[]) => {
-          const result = await postgres!.query(toPgSql(pgSql), params);
+          const result = await (postgres as Pool).query(toPgSql(pgSql), params);
           return { lastInsertRowid: result.rows[0]?.id || 0, changes: result.rowCount || 0 };
         },
       } as unknown as Statement;
