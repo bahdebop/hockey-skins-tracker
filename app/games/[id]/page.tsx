@@ -199,6 +199,19 @@ export default function GamePage() {
     }
   };
 
+  const startGame = async () => {
+    try {
+      await fetch('/api/games', {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ id: gameId, status: 'in_progress', period: 1 }),
+      });
+      fetchGameData();
+    } catch (error) {
+      console.error('Error starting game:', error);
+    }
+  };
+
   const skipTurn = async () => {
     const picker = getCurrentPicker();
     if (!picker) return;
@@ -242,6 +255,7 @@ export default function GamePage() {
     switch (status) {
       case 'upcoming': return 'bg-blue-500/20 text-blue-400';
       case 'drafting': return 'bg-yellow-500/20 text-yellow-400';
+      case 'ready': return 'bg-cyan-500/20 text-cyan-400';
       case 'in_progress': return 'bg-green-500/20 text-green-400';
       case 'final': return 'bg-gray-500/20 text-gray-400';
       default: return 'bg-gray-500/20 text-gray-400';
@@ -353,6 +367,23 @@ export default function GamePage() {
             >
               Start Draft
             </button>
+          )}
+
+          {game.status === 'ready' && (
+            <div className="space-y-4">
+              <div className="bg-cyan-500/10 border border-cyan-500/30 rounded-lg p-4 text-center">
+                <div className="text-lg font-semibold text-cyan-400">Draft Complete</div>
+                <div className="text-sm text-gray-400">Waiting for puck drop</div>
+              </div>
+              {user && (
+                <button
+                  onClick={startGame}
+                  className="w-full px-6 py-4 bg-green-600 hover:bg-green-700 rounded-lg font-semibold text-lg transition-colors"
+                >
+                  Start Game
+                </button>
+              )}
+            </div>
           )}
 
           {game.status === 'drafting' && currentPicker && (

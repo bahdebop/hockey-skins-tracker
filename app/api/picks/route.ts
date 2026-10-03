@@ -67,6 +67,15 @@ export async function POST(request: NextRequest) {
       db.prepare('UPDATE games SET current_pick_index = ? WHERE id = ?').run(nextIndex, game_id);
     };
 
+    const draftComplete = (): boolean => {
+      const { c }: any = db.prepare('SELECT COUNT(*) as c FROM picks WHERE game_id = ?').get(game_id);
+      if (turnOrder.length > 0 && c >= turnOrder.length) {
+        db.prepare("UPDATE games SET status = 'ready' WHERE id = ?").run(game_id);
+        return true;
+      }
+      return false;
+    };
+
     const pickWithNames = (id: any) => db.prepare(`
       SELECT p.*, pl.name as player_name, hp.name as hockey_player_name
       FROM picks p
@@ -120,7 +129,7 @@ export async function POST(request: NextRequest) {
         VALUES (?, ?, NULL, 0, 0)
       `).run(currentPickerId, game_id);
 
-      advanceDraft();
+      if (!draftComplete()) advanceDraft();
       return NextResponse.json(pickWithNames(result.lastInsertRowid));
     }
 
@@ -136,6 +145,7 @@ export async function POST(request: NextRequest) {
       db.prepare('UPDATE picks SET hockey_player_id = ?, is_win_pick = ?, skins = ? WHERE id = ?')
         .run(is_win_pick ? null : hockey_player_id, is_win_pick ? 1 : 0, initialSkinsFor(hockey_player_id, is_win_pick), existingPick.id);
 
+      draftComplete();
       return NextResponse.json(pickWithNames(existingPick.id));
     }
 
@@ -157,9 +167,9 @@ export async function POST(request: NextRequest) {
     const result = db.prepare(`
       INSERT INTO picks (player_id, game_id, hockey_player_id, is_win_pick, skins)
       VALUES (?, ?, ?, ?, ?)
-    `).run(player_id, game_id, hockey_player_id || null, is_win_pick ? 1 : 0, initialSkinsFor(hockey_player_id, is_win_pick));
+    `).run(player_id, game_id, is_win_pick ? null : hockey_player_id, is_win_pick ? 1 : 0, initialSkinsFor(hockey_player_id, is_win_pick));
 
-    advanceDraft();
+    if (!draftComplete()) advanceDraft();
     return NextResponse.json(pickWithNames(result.lastInsertRowid));
   } catch (error) {
     console.error('Error creating pick:', error);

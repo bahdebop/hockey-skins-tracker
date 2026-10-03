@@ -29,6 +29,7 @@ export default function GamesPage() {
     switch (status) {
       case 'upcoming': return 'bg-blue-500/20 text-blue-400';
       case 'drafting': return 'bg-yellow-500/20 text-yellow-400';
+      case 'ready': return 'bg-cyan-500/20 text-cyan-400';
       case 'in_progress': return 'bg-green-500/20 text-green-400';
       case 'final': return 'bg-gray-500/20 text-gray-400';
       default: return 'bg-gray-500/20 text-gray-400';
@@ -39,6 +40,7 @@ export default function GamesPage() {
     switch (status) {
       case 'upcoming': return 'Upcoming';
       case 'drafting': return 'Drafting';
+      case 'ready': return 'Draft Complete';
       case 'in_progress': return 'Live';
       case 'final': return 'Final';
       default: return status;

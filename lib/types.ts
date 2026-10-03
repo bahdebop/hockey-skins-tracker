@@ -18,7 +18,7 @@ export interface Game {
   opponent: string;
   game_date: string;
   pot_amount: number;
-  status: 'upcoming' | 'drafting' | 'in_progress' | 'final';
+  status: 'upcoming' | 'drafting' | 'ready' | 'in_progress' | 'final';
   created_by: number;
   draft_order?: string; // JSON array of player IDs
   current_pick_index: number;
