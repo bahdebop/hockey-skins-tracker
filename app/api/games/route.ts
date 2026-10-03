@@ -1,6 +1,8 @@
 import { NextRequest, NextResponse } from 'next/server';
 import db from '@/lib/db';
 import { populateRosterForGame } from '@/lib/nhl';
+import { recomputePickSkins, settleGame } from '@/lib/scoring';
+import { getCurrentUser, isAdmin } from '@/lib/auth';
 
 export async function GET(request: NextRequest) {
   try {
@@ -67,8 +69,17 @@ export async function POST(request: NextRequest) {
 
 export async function PUT(request: NextRequest) {
   try {
+    const user = await getCurrentUser();
+    if (!user) {
+      return NextResponse.json({ error: 'You must be logged in' }, { status: 401 });
+    }
+
     const body = await request.json();
     const { id, status, draft_order, current_pick_index, period, wild_score, opponent_score } = body;
+
+    if (status === 'final' && !isAdmin(user.userId)) {
+      return NextResponse.json({ error: 'Only an admin can mark a game final' }, { status: 403 });
+    }
 
     const updates: string[] = [];
     const params: any[] = [];
@@ -101,8 +112,15 @@ export async function PUT(request: NextRequest) {
     params.push(id);
 
     db.prepare(`UPDATE games SET ${updates.join(', ')} WHERE id = ?`).run(...params);
+
+    if (status === 'final') {
+      settleGame(id);
+    } else if (wild_score !== undefined || opponent_score !== undefined) {
+      recomputePickSkins(id);
+    }
+
     const game = db.prepare('SELECT * FROM games WHERE id = ?').get(id);
-    
+
     return NextResponse.json(game);
   } catch (error) {
     console.error('Error updating game:', error);

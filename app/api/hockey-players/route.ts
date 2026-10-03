@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import db from '@/lib/db';
 import { eventManager } from '@/lib/eventManager';
+import { recomputePickSkins } from '@/lib/scoring';
 
 export async function GET(request: NextRequest) {
   try {
@@ -59,6 +60,10 @@ export async function PUT(request: NextRequest) {
 
     db.prepare('UPDATE hockey_players SET goals = ? WHERE id = ?').run(goals, id);
     const player: any = db.prepare('SELECT * FROM hockey_players WHERE id = ?').get(id);
+
+    if (player) {
+      recomputePickSkins(player.game_id);
+    }
     
     // Broadcast goal update if goals increased
     if (player && goals > oldGoals) {

@@ -3,22 +3,46 @@ import db from '@/lib/db';
 
 export async function GET(request: NextRequest) {
   try {
-    const stats = db.prepare(`
-      SELECT 
-        p.id as player_id,
-        p.name as player_name,
-        COALESCE(SUM(pk.skins), 0) as total_skins,
-        COUNT(DISTINCT pk.game_id) as games_played,
-        COALESCE(SUM(g.pot_amount), 0) as total_spent,
-        0 as total_won,
-        0 as net_balance
-      FROM players p
-      LEFT JOIN picks pk ON p.id = pk.player_id
-      LEFT JOIN games g ON pk.game_id = g.id
-      GROUP BY p.id, p.name
-      ORDER BY total_skins DESC
+    const players: any[] = db.prepare('SELECT id, name FROM players ORDER BY name').all();
+
+    const picks: any[] = db.prepare(`
+      SELECT pk.player_id, pk.game_id, pk.skins, g.pot_amount
+      FROM picks pk
+      JOIN games g ON pk.game_id = g.id
     `).all();
 
+    // Per-game skin value = pot total / total skins (pot splits by skins)
+    const gameTotals = new Map<number, { skins: number; pot: number; players: number }>();
+    for (const p of picks) {
+      const t = gameTotals.get(p.game_id) || { skins: 0, pot: p.pot_amount, players: 0 };
+      t.skins += p.skins;
+      t.players += 1;
+      gameTotals.set(p.game_id, t);
+    }
+    const skinValue = new Map<number, number>();
+    for (const [gameId, t] of gameTotals) {
+      skinValue.set(gameId, t.skins > 0 ? (t.pot * t.players) / t.skins : 0);
+    }
+
+    const stats = players.map((p) => {
+      const mine = picks.filter((pk) => pk.player_id === p.id);
+      const totalSkins = mine.reduce((s, pk) => s + pk.skins, 0);
+      const gamesPlayed = new Set(mine.map((pk) => pk.game_id)).size;
+      const totalSpent = mine.reduce((s, pk) => s + pk.pot_amount, 0);
+      const totalWon = mine.reduce((s, pk) => s + pk.skins * (skinValue.get(pk.game_id) || 0), 0);
+
+      return {
+        player_id: p.id,
+        player_name: p.name,
+        total_skins: totalSkins,
+        games_played: gamesPlayed,
+        total_spent: Math.round(totalSpent * 100) / 100,
+        total_won: Math.round(totalWon * 100) / 100,
+        net_balance: Math.round((totalWon - totalSpent) * 100) / 100,
+      };
+    });
+
+    stats.sort((a, b) => b.total_skins - a.total_skins);
     return NextResponse.json(stats);
   } catch (error) {
     console.error('Error fetching stats:', error);
