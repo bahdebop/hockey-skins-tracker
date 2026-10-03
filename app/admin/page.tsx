@@ -7,7 +7,7 @@ import { Player } from '@/lib/types';
 import { useAuth } from '@/lib/AuthContext';
 
 export default function AdminPage() {
-  const { user, loading: authLoading, refreshUser } = useAuth();
+  const { user, loading: authLoading, refreshUser, viewingAsUser, setViewingAsUser } = useAuth();
   const [players, setPlayers] = useState<Player[]>([]);
   const [newPlayerName, setNewPlayerName] = useState('');
   const [loading, setLoading] = useState(false);
@@ -148,6 +148,26 @@ export default function AdminPage() {
     );
   }
 
+  if (viewingAsUser) {
+    return (
+      <div className="min-h-screen bg-gradient-to-br from-gray-900 via-gray-800 to-gray-900 text-white flex items-center justify-center p-4">
+        <div className="bg-gray-800/50 backdrop-blur rounded-lg p-8 max-w-md w-full text-center">
+          <Lock className="w-12 h-12 text-gray-500 mx-auto mb-4" />
+          <h1 className="text-2xl font-bold mb-2">Admin view is off</h1>
+          <p className="text-gray-400 mb-6">
+            You're viewing the app as a regular user.
+          </p>
+          <button
+            onClick={() => setViewingAsUser(false)}
+            className="w-full px-6 py-3 bg-green-600 hover:bg-green-700 rounded-lg font-semibold transition-colors"
+          >
+            Resume Admin View
+          </button>
+        </div>
+      </div>
+    );
+  }
+
   if (!user.is_admin) {
     return (
       <div className="min-h-screen bg-gradient-to-br from-gray-900 via-gray-800 to-gray-900 text-white flex items-center justify-center p-4">
@@ -182,12 +202,20 @@ export default function AdminPage() {
   return (
     <div className="min-h-screen bg-gradient-to-br from-gray-900 via-gray-800 to-gray-900 text-white p-4 md:p-8">
       <div className="max-w-4xl mx-auto">
-        <div className="mb-8">
-          <h1 className="text-3xl md:text-4xl font-bold mb-4 flex items-center gap-3">
-            <Settings className="w-10 h-10 text-blue-400" />
-            Admin Panel
-          </h1>
-          <p className="text-gray-400">Manage players and settings</p>
+        <div className="mb-8 flex items-start justify-between">
+          <div>
+            <h1 className="text-3xl md:text-4xl font-bold mb-4 flex items-center gap-3">
+              <Settings className="w-10 h-10 text-blue-400" />
+              Admin Panel
+            </h1>
+            <p className="text-gray-400">Manage players and settings</p>
+          </div>
+          <button
+            onClick={() => setViewingAsUser(true)}
+            className="px-4 py-2 bg-gray-700 hover:bg-gray-600 rounded-lg text-sm font-semibold transition-colors"
+          >
+            View as regular user
+          </button>
         </div>
 
         <div className="bg-gray-800/50 backdrop-blur rounded-lg p-6 mb-6">

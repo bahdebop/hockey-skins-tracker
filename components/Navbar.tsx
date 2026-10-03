@@ -8,7 +8,7 @@ import { useAuth } from '@/lib/AuthContext';
 
 export default function Navbar() {
   const pathname = usePathname();
-  const { user } = useAuth();
+  const { user, viewingAsUser, setViewingAsUser } = useAuth();
   const [open, setOpen] = useState(false);
 
   useEffect(() => {
@@ -90,6 +90,18 @@ export default function Navbar() {
               <span>{authLink.label}</span>
             </Link>
           </div>
+        </div>
+      )}
+
+      {viewingAsUser && (
+        <div className="bg-yellow-500/90 text-black text-sm text-center py-1.5 px-4">
+          Viewing as a regular user.{' '}
+          <button
+            onClick={() => setViewingAsUser(false)}
+            className="underline font-semibold hover:opacity-80"
+          >
+            Resume admin view
+          </button>
         </div>
       )}
     </nav>
