@@ -19,6 +19,7 @@ export default function GamePage() {
   const [loading, setLoading] = useState(true);
   const [draftOrder, setDraftOrder] = useState<number[]>([]);
   const [notification, setNotification] = useState<any>(null);
+  const [loadingRoster, setLoadingRoster] = useState(false);
 
   useEffect(() => {
     fetchGameData();
@@ -110,6 +111,28 @@ export default function GamePage() {
       fetchGameData();
     } catch (error) {
       console.error('Error starting draft:', error);
+    }
+  };
+
+  const loadRoster = async () => {
+    setLoadingRoster(true);
+    try {
+      const res = await fetch('/api/hockey-players/populate', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ game_id: gameId }),
+      });
+      if (!res.ok) {
+        const err = await res.json();
+        alert(err.error || 'Failed to load roster');
+        return;
+      }
+      await fetchGameData();
+    } catch (error) {
+      console.error('Error loading roster:', error);
+      alert('Failed to load roster');
+    } finally {
+      setLoadingRoster(false);
     }
   };
 
@@ -315,9 +338,17 @@ export default function GamePage() {
           <div className="bg-gray-800/50 backdrop-blur rounded-lg p-6">
             <h2 className="text-2xl font-bold mb-4">Available Picks</h2>
 
-            {game.status === 'upcoming' ? (
+            {hockeyPlayers.length === 0 && (game.status === 'upcoming' || game.status === 'drafting') ? (
+              <button
+                onClick={loadRoster}
+                disabled={loadingRoster}
+                className="w-full px-6 py-4 bg-blue-600 hover:bg-blue-700 disabled:bg-gray-600 disabled:cursor-not-allowed rounded-lg font-semibold transition-colors"
+              >
+                {loadingRoster ? 'Loading Wild roster...' : 'Load Wild Roster'}
+              </button>
+            ) : game.status === 'upcoming' ? (
               <div className="text-center text-gray-400 py-8">
-                Start the draft to see available picks
+                Roster loaded ({hockeyPlayers.length} players) — start the draft to pick
               </div>
             ) : (
               <div className="space-y-3">

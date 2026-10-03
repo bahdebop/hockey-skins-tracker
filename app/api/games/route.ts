@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import db from '@/lib/db';
+import { populateRosterForGame } from '@/lib/nhl';
 
 export async function GET(request: NextRequest) {
   try {
@@ -49,7 +50,14 @@ export async function POST(request: NextRequest) {
       VALUES (?, ?, ?, ?, ?, 'upcoming')
     `).run(opponent, game_date, pot_amount, created_by, nhl_game_id || null);
 
-    const game = db.prepare('SELECT * FROM games WHERE id = ?').get(result.lastInsertRowid);
+    const gameId = Number(result.lastInsertRowid);
+    try {
+      await populateRosterForGame(gameId);
+    } catch (e) {
+      console.error('Failed to auto-populate Wild roster:', e);
+    }
+
+    const game = db.prepare('SELECT * FROM games WHERE id = ?').get(gameId);
     return NextResponse.json(game);
   } catch (error) {
     console.error('Error creating game:', error);
