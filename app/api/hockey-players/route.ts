@@ -5,7 +5,7 @@ import { eventManager } from '@/lib/eventManager';
 export async function GET(request: NextRequest) {
   try {
     const { searchParams } = new URL(request.url);
-    const gameId = searchParams.get('gameId');
+    const gameId = searchParams.get('gameId') || searchParams.get('game_id');
 
     if (!gameId) {
       return NextResponse.json({ error: 'Game ID required' }, { status: 400 });

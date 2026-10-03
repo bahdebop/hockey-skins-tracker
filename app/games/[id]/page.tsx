@@ -77,9 +77,9 @@ export default function GamePage() {
       const picksData = await picksRes.json();
 
       setGame(Array.isArray(gameData) ? gameData[0] : gameData);
-      setPlayers(playersData);
-      setHockeyPlayers(hockeyPlayersData);
-      setPicks(picksData);
+      setPlayers(Array.isArray(playersData) ? playersData : []);
+      setHockeyPlayers(Array.isArray(hockeyPlayersData) ? hockeyPlayersData : []);
+      setPicks(Array.isArray(picksData) ? picksData : []);
 
       if (gameData.draft_order) {
         setDraftOrder(JSON.parse(gameData.draft_order));

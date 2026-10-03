@@ -4,8 +4,8 @@ import db from '@/lib/db';
 export async function GET(request: NextRequest) {
   try {
     const { searchParams } = new URL(request.url);
-    const gameId = searchParams.get('gameId');
-    const playerId = searchParams.get('playerId');
+    const gameId = searchParams.get('gameId') || searchParams.get('game_id');
+    const playerId = searchParams.get('playerId') || searchParams.get('player_id');
 
     let query = `
       SELECT p.*, pl.name as player_name, hp.name as hockey_player_name, hp.position
