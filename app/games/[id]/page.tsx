@@ -199,6 +199,20 @@ export default function GamePage() {
     }
   };
 
+  const endDraft = async () => {
+    if (!confirm('End the draft now? Unpicked slots will stay unassigned (admin can assign them later).')) return;
+    try {
+      await fetch('/api/games', {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ id: gameId, status: 'ready' }),
+      });
+      fetchGameData();
+    } catch (error) {
+      console.error('Error ending draft:', error);
+    }
+  };
+
   const startGame = async () => {
     try {
       await fetch('/api/games', {
@@ -407,12 +421,20 @@ export default function GamePage() {
                   )}
                 </div>
                 {user?.is_admin && (
-                  <button
-                    onClick={skipTurn}
-                    className="ml-auto px-3 py-2 bg-gray-700 hover:bg-gray-600 rounded-lg text-sm font-semibold transition-colors"
-                  >
-                    Skip {currentPicker.name.split(' ')[0]}
-                  </button>
+                  <div className="ml-auto flex gap-2">
+                    <button
+                      onClick={skipTurn}
+                      className="px-3 py-2 bg-gray-700 hover:bg-gray-600 rounded-lg text-sm font-semibold transition-colors"
+                    >
+                      Skip {currentPicker.name.split(' ')[0]}
+                    </button>
+                    <button
+                      onClick={endDraft}
+                      className="px-3 py-2 bg-cyan-700 hover:bg-cyan-600 rounded-lg text-sm font-semibold transition-colors"
+                    >
+                      End Draft
+                    </button>
+                  </div>
                 )}
               </div>
             </div>
