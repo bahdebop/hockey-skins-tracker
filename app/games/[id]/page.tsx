@@ -22,6 +22,7 @@ export default function GamePage() {
   const [notification, setNotification] = useState<any>(null);
   const [loadingRoster, setLoadingRoster] = useState(false);
   const [picking, setPicking] = useState(false);
+  const [editingPickId, setEditingPickId] = useState<number | null>(null);
   const { user } = useAuth();
 
   useEffect(() => {
@@ -168,6 +169,29 @@ export default function GamePage() {
       alert('Failed to make pick');
     } finally {
       setPicking(false);
+    }
+  };
+
+  const changePick = async (pickId: number, hockeyPlayerId: number | null, isWin: boolean) => {
+    try {
+      const res = await fetch('/api/picks', {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ id: pickId, hockey_player_id: hockeyPlayerId, is_win_pick: isWin }),
+      });
+
+      if (!res.ok) {
+        const err = await res.json();
+        alert(err.error || 'Failed to change pick');
+        return;
+      }
+
+      await fetchGameData();
+    } catch (error) {
+      console.error('Error changing pick:', error);
+      alert('Failed to change pick');
+    } finally {
+      setEditingPickId(null);
     }
   };
 
@@ -362,12 +386,51 @@ export default function GamePage() {
                             <div className="font-semibold">{player?.name}</div>
                             {pick && (
                               <div className="text-sm text-gray-400">
-                                {pick.is_win_pick ? (
-                                  <span className="text-green-400">WIN ({pick.skins} skins)</span>
+                                {editingPickId === pick.id ? (
+                                  <select
+                                    autoFocus
+                                    defaultValue=""
+                                    onChange={(e) => {
+                                      const v = e.target.value;
+                                      if (v === 'win') {
+                                        changePick(pick.id, null, true);
+                                      } else if (v) {
+                                        changePick(pick.id, Number(v), false);
+                                      } else {
+                                        setEditingPickId(null);
+                                      }
+                                    }}
+                                    onBlur={() => setEditingPickId(null)}
+                                    className="bg-gray-800 border border-gray-700 rounded px-2 py-1 text-white text-sm"
+                                  >
+                                    <option value="">Choose replacement...</option>
+                                    {!picks.some(p => p.is_win_pick && p.id !== pick.id) && (
+                                      <option value="win">WIN (team victory)</option>
+                                    )}
+                                    {hockeyPlayers
+                                      .filter(hp => !pickedHockeyPlayerIds.has(hp.id) || hp.id === pick.hockey_player_id)
+                                      .map(hp => (
+                                        <option key={hp.id} value={hp.id}>
+                                          {hp.name} ({hp.position === 'F' ? 'Fwd' : hp.position === 'D' ? 'Def' : 'G'})
+                                        </option>
+                                      ))}
+                                  </select>
                                 ) : (
-                                  <span>
-                                    {pick.hockey_player_name} ({pick.skins} skins)
-                                  </span>
+                                  <>
+                                    {pick.is_win_pick ? (
+                                      <span className="text-green-400">WIN ({pick.skins} skins)</span>
+                                    ) : (
+                                      <span>{pick.hockey_player_name} ({pick.skins} skins)</span>
+                                    )}
+                                    {user?.is_admin && game.status !== 'upcoming' && (
+                                      <button
+                                        onClick={() => setEditingPickId(pick.id)}
+                                        className="ml-2 text-xs text-blue-400 hover:text-blue-300"
+                                      >
+                                        change
+                                      </button>
+                                    )}
+                                  </>
                                 )}
                               </div>
                             )}

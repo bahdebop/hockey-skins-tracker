@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import db from '@/lib/db';
 import { getCurrentUser, isAdmin } from '@/lib/auth';
+import { recomputePickSkins, settleGame } from '@/lib/scoring';
 
 export async function GET(request: NextRequest) {
   try {
@@ -126,8 +127,76 @@ export async function POST(request: NextRequest) {
   }
 }
 
+// Admin-only: swap a made pick to a different available player (e.g. injury scratch)
+export async function PUT(request: NextRequest) {
+  try {
+    const user = await getCurrentUser();
+    if (!user || !isAdmin(user.userId)) {
+      return NextResponse.json({ error: 'Admin access required' }, { status: 403 });
+    }
+
+    const body = await request.json();
+    const { id, hockey_player_id, is_win_pick } = body;
+
+    const pick: any = db.prepare('SELECT * FROM picks WHERE id = ?').get(id);
+    if (!pick) {
+      return NextResponse.json({ error: 'Pick not found' }, { status: 404 });
+    }
+
+    if (is_win_pick) {
+      const taken = db.prepare(
+        'SELECT id FROM picks WHERE game_id = ? AND is_win_pick = 1 AND id != ?'
+      ).get(pick.game_id, id);
+      if (taken) {
+        return NextResponse.json({ error: 'Win has already been picked' }, { status: 400 });
+      }
+    } else if (hockey_player_id) {
+      const hp: any = db.prepare('SELECT * FROM hockey_players WHERE id = ?').get(hockey_player_id);
+      if (!hp || hp.game_id !== pick.game_id) {
+        return NextResponse.json({ error: 'Invalid player for this game' }, { status: 400 });
+      }
+      const taken = db.prepare(
+        'SELECT id FROM picks WHERE game_id = ? AND hockey_player_id = ? AND id != ?'
+      ).get(pick.game_id, hockey_player_id, id);
+      if (taken) {
+        return NextResponse.json({ error: 'That player has already been picked' }, { status: 400 });
+      }
+    } else {
+      return NextResponse.json({ error: 'hockey_player_id or is_win_pick required' }, { status: 400 });
+    }
+
+    db.prepare('UPDATE picks SET hockey_player_id = ?, is_win_pick = ? WHERE id = ?')
+      .run(is_win_pick ? null : hockey_player_id, is_win_pick ? 1 : 0, id);
+
+    recomputePickSkins(pick.game_id);
+
+    const game: any = db.prepare('SELECT status FROM games WHERE id = ?').get(pick.game_id);
+    if (game?.status === 'final') {
+      settleGame(pick.game_id);
+    }
+
+    const updated = db.prepare(`
+      SELECT p.*, pl.name as player_name, hp.name as hockey_player_name
+      FROM picks p
+      JOIN players pl ON p.player_id = pl.id
+      LEFT JOIN hockey_players hp ON p.hockey_player_id = hp.id
+      WHERE p.id = ?
+    `).get(id);
+
+    return NextResponse.json(updated);
+  } catch (error) {
+    console.error('Error updating pick:', error);
+    return NextResponse.json({ error: 'Failed to update pick' }, { status: 500 });
+  }
+}
+
 export async function DELETE(request: NextRequest) {
   try {
+    const user = await getCurrentUser();
+    if (!user || !isAdmin(user.userId)) {
+      return NextResponse.json({ error: 'Admin access required' }, { status: 403 });
+    }
+
     const { searchParams } = new URL(request.url);
     const id = searchParams.get('id');
 
