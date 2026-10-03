@@ -101,20 +101,26 @@ export default function GamePage() {
       const shuffledPlayers = [...players].sort(() => Math.random() - 0.5);
       const order = shuffledPlayers.map(p => p.id);
 
-      await fetch('/api/games', {
+      const res = await fetch('/api/games', {
         method: 'PUT',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
-          id: gameId,
+          id: Number(gameId),
           status: 'drafting',
           draft_order: JSON.stringify(order),
           current_pick_index: 0,
         }),
       });
+      if (!res.ok) {
+        const err = await res.json().catch(() => ({}));
+        alert(err.error || `Failed to start draft (${res.status})`);
+        return;
+      }
 
       fetchGameData();
     } catch (error) {
       console.error('Error starting draft:', error);
+      alert('Failed to start draft');
     }
   };
 
@@ -200,29 +206,40 @@ export default function GamePage() {
   };
 
   const endDraft = async () => {
-    if (!confirm('End the draft now? Unpicked slots will stay unassigned (admin can assign them later).')) return;
     try {
-      await fetch('/api/games', {
+      const res = await fetch('/api/games', {
         method: 'PUT',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ id: gameId, status: 'ready' }),
+        body: JSON.stringify({ id: Number(gameId), status: 'ready' }),
       });
+      if (!res.ok) {
+        const err = await res.json().catch(() => ({}));
+        alert(err.error || `Failed to end draft (${res.status})`);
+        return;
+      }
       fetchGameData();
     } catch (error) {
       console.error('Error ending draft:', error);
+      alert('Failed to end draft');
     }
   };
 
   const startGame = async () => {
     try {
-      await fetch('/api/games', {
+      const res = await fetch('/api/games', {
         method: 'PUT',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ id: gameId, status: 'in_progress', period: 1 }),
+        body: JSON.stringify({ id: Number(gameId), status: 'in_progress', period: 1 }),
       });
+      if (!res.ok) {
+        const err = await res.json().catch(() => ({}));
+        alert(err.error || `Failed to start game (${res.status})`);
+        return;
+      }
       fetchGameData();
     } catch (error) {
       console.error('Error starting game:', error);
+      alert('Failed to start game');
     }
   };
 
