@@ -1,6 +1,7 @@
 import bcrypt from 'bcryptjs';
 import jwt from 'jsonwebtoken';
 import { cookies } from 'next/headers';
+import db from './db';
 
 const JWT_SECRET = process.env.JWT_SECRET || 'your-secret-key-change-in-production';
 const SALT_ROUNDS = 10;
@@ -50,10 +51,15 @@ export async function clearAuthCookie() {
 export async function getCurrentUser(): Promise<JWTPayload | null> {
   const cookieStore = await cookies();
   const token = cookieStore.get('auth-token')?.value;
-  
+
   if (!token) {
     return null;
   }
-  
+
   return verifyToken(token);
+}
+
+export function isAdmin(userId: number): boolean {
+  const row = db.prepare('SELECT is_admin FROM players WHERE id = ?').get(userId) as any;
+  return !!row?.is_admin;
 }

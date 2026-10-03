@@ -39,6 +39,7 @@ export async function POST(request: NextRequest) {
       phone: player.phone,
       venmo_username: player.venmo_username,
       paypal_email: player.paypal_email,
+      is_admin: !!player.is_admin,
     });
   } catch (error) {
     console.error('Error logging in:', error);

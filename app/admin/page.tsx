@@ -1,13 +1,19 @@
 'use client';
 
 import { useState, useEffect } from 'react';
-import { Settings, Users, Plus, Trash2, Edit } from 'lucide-react';
+import { Settings, Users, Plus, Trash2, Edit, Lock } from 'lucide-react';
+import Link from 'next/link';
 import { Player } from '@/lib/types';
+import { useAuth } from '@/lib/AuthContext';
 
 export default function AdminPage() {
+  const { user, loading: authLoading, refreshUser } = useAuth();
   const [players, setPlayers] = useState<Player[]>([]);
   const [newPlayerName, setNewPlayerName] = useState('');
   const [loading, setLoading] = useState(false);
+  const [adminPassword, setAdminPassword] = useState('');
+  const [claiming, setClaiming] = useState(false);
+  const [claimError, setClaimError] = useState('');
 
   useEffect(() => {
     fetchPlayers();
@@ -70,6 +76,82 @@ export default function AdminPage() {
       alert('Failed to delete player');
     }
   };
+
+  const claimAdmin = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setClaiming(true);
+    setClaimError('');
+    try {
+      const res = await fetch('/api/auth/admin', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ password: adminPassword }),
+      });
+      if (!res.ok) {
+        const err = await res.json();
+        throw new Error(err.error || 'Failed to enable admin');
+      }
+      setAdminPassword('');
+      await refreshUser();
+    } catch (error) {
+      setClaimError(error instanceof Error ? error.message : 'Failed to enable admin');
+    } finally {
+      setClaiming(false);
+    }
+  };
+
+  if (authLoading) {
+    return (
+      <div className="min-h-screen bg-gradient-to-br from-gray-900 via-gray-800 to-gray-900 flex items-center justify-center">
+        <div className="text-white text-xl">Loading...</div>
+      </div>
+    );
+  }
+
+  if (!user) {
+    return (
+      <div className="min-h-screen bg-gradient-to-br from-gray-900 via-gray-800 to-gray-900 text-white flex items-center justify-center p-4">
+        <div className="text-center">
+          <Lock className="w-12 h-12 text-gray-500 mx-auto mb-4" />
+          <p className="text-xl mb-4">Please log in to access the admin panel.</p>
+          <Link href="/login" className="px-6 py-3 bg-green-600 hover:bg-green-700 rounded-lg font-semibold transition-colors">
+            Go to Login
+          </Link>
+        </div>
+      </div>
+    );
+  }
+
+  if (!user.is_admin) {
+    return (
+      <div className="min-h-screen bg-gradient-to-br from-gray-900 via-gray-800 to-gray-900 text-white flex items-center justify-center p-4">
+        <div className="bg-gray-800/50 backdrop-blur rounded-lg p-8 max-w-md w-full">
+          <Lock className="w-12 h-12 text-yellow-400 mx-auto mb-4" />
+          <h1 className="text-2xl font-bold text-center mb-2">Admin Access Required</h1>
+          <p className="text-gray-400 text-center mb-6">
+            Enter the admin password to enable admin access on your account.
+          </p>
+          <form onSubmit={claimAdmin} className="space-y-4">
+            <input
+              type="password"
+              value={adminPassword}
+              onChange={(e) => setAdminPassword(e.target.value)}
+              placeholder="Admin password"
+              className="w-full px-4 py-3 bg-gray-900/50 border border-gray-700 rounded-lg focus:outline-none focus:ring-2 focus:ring-green-500 text-white placeholder-gray-500"
+            />
+            {claimError && <p className="text-red-400 text-sm">{claimError}</p>}
+            <button
+              type="submit"
+              disabled={claiming || !adminPassword}
+              className="w-full px-6 py-3 bg-green-600 hover:bg-green-700 disabled:bg-gray-600 disabled:cursor-not-allowed rounded-lg font-semibold transition-colors"
+            >
+              {claiming ? 'Verifying...' : 'Enable Admin Access'}
+            </button>
+          </form>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-gray-900 via-gray-800 to-gray-900 text-white p-4 md:p-8">

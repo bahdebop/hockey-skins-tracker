@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import db from '@/lib/db';
+import { getCurrentUser, isAdmin } from '@/lib/auth';
 
 export async function GET(request: NextRequest) {
   try {
@@ -43,6 +44,28 @@ export async function POST(request: NextRequest) {
   try {
     const body = await request.json();
     const { player_id, game_id, hockey_player_id, is_win_pick } = body;
+
+    const user = await getCurrentUser();
+    if (!user) {
+      return NextResponse.json({ error: 'You must be logged in to make a pick' }, { status: 401 });
+    }
+
+    const gameForAuth: any = db.prepare('SELECT * FROM games WHERE id = ?').get(game_id);
+    if (!gameForAuth) {
+      return NextResponse.json({ error: 'Game not found' }, { status: 404 });
+    }
+    if (gameForAuth.status !== 'drafting') {
+      return NextResponse.json({ error: 'The draft is not active for this game' }, { status: 400 });
+    }
+
+    const turnOrder: number[] = JSON.parse(gameForAuth.draft_order || '[]');
+    const currentPickerId = turnOrder[gameForAuth.current_pick_index];
+    if (Number(player_id) !== currentPickerId) {
+      return NextResponse.json({ error: 'It is not this player\'s turn to pick' }, { status: 403 });
+    }
+    if (user.userId !== currentPickerId && !isAdmin(user.userId)) {
+      return NextResponse.json({ error: 'You can only pick on your own turn' }, { status: 403 });
+    }
 
     // Check if player already has a pick for this game
     const existingPick = db.prepare('SELECT * FROM picks WHERE player_id = ? AND game_id = ?').get(player_id, game_id);

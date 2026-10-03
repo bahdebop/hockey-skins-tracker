@@ -29,6 +29,7 @@ function initializeDatabase() {
         password_hash TEXT,
         venmo_username TEXT,
         paypal_email TEXT,
+        is_admin BOOLEAN DEFAULT FALSE,
         created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
         updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
       );
@@ -109,6 +110,7 @@ function initializeDatabase() {
         password_hash TEXT,
         venmo_username TEXT,
         paypal_email TEXT,
+        is_admin INTEGER DEFAULT 0,
         created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
         updated_at DATETIME DEFAULT CURRENT_TIMESTAMP
       );
@@ -170,6 +172,24 @@ function initializeDatabase() {
         value TEXT
       );
     `);
+
+    const playerCols = new Set(
+      (sqlite.prepare('PRAGMA table_info(players)').all() as { name: string }[]).map(c => c.name)
+    );
+    const migrations: [string, string][] = [
+      ['email', 'TEXT'],
+      ['phone', 'TEXT'],
+      ['password_hash', 'TEXT'],
+      ['venmo_username', 'TEXT'],
+      ['paypal_email', 'TEXT'],
+      ['updated_at', 'DATETIME'],
+      ['is_admin', 'INTEGER DEFAULT 0'],
+    ];
+    for (const [col, def] of migrations) {
+      if (!playerCols.has(col)) {
+        sqlite.exec(`ALTER TABLE players ADD COLUMN ${col} ${def}`);
+      }
+    }
   }
 }
 

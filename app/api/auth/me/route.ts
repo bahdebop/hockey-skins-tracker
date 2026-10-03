@@ -23,6 +23,7 @@ export async function GET() {
       phone: (player as any).phone,
       venmo_username: (player as any).venmo_username,
       paypal_email: (player as any).paypal_email,
+      is_admin: !!(player as any).is_admin,
     });
   } catch (error) {
     console.error('Error getting current user:', error);

@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import db from '@/lib/db';
-import { getCurrentUser, hashPassword } from '@/lib/auth';
+import { getCurrentUser, hashPassword, isAdmin } from '@/lib/auth';
 
 export async function GET() {
   try {
@@ -14,6 +14,11 @@ export async function GET() {
 
 export async function POST(request: NextRequest) {
   try {
+    const user = await getCurrentUser();
+    if (!user || !isAdmin(user.userId)) {
+      return NextResponse.json({ error: 'Admin access required' }, { status: 403 });
+    }
+
     const body = await request.json();
     const { name } = body;
 
@@ -79,6 +84,7 @@ export async function PUT(request: NextRequest) {
       phone: (player as any).phone,
       venmo_username: (player as any).venmo_username,
       paypal_email: (player as any).paypal_email,
+      is_admin: !!(player as any).is_admin,
     });
   } catch (error) {
     console.error('Error updating player:', error);
@@ -88,6 +94,11 @@ export async function PUT(request: NextRequest) {
 
 export async function DELETE(request: NextRequest) {
   try {
+    const user = await getCurrentUser();
+    if (!user || !isAdmin(user.userId)) {
+      return NextResponse.json({ error: 'Admin access required' }, { status: 403 });
+    }
+
     const { searchParams } = new URL(request.url);
     const id = searchParams.get('id');
 

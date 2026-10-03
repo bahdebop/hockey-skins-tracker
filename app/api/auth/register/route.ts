@@ -46,6 +46,7 @@ export async function POST(request: NextRequest) {
       name: (player as any).name,
       email: (player as any).email,
       phone: (player as any).phone,
+      is_admin: !!(player as any).is_admin,
     });
   } catch (error) {
     console.error('Error registering:', error);

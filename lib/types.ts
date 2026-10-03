@@ -6,6 +6,7 @@ export interface Player {
   password_hash?: string;
   venmo_username?: string;
   paypal_email?: string;
+  is_admin?: boolean;
   created_at: string;
   updated_at?: string;
 }

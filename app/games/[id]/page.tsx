@@ -6,6 +6,7 @@ import { ArrowLeft, Users, Calendar, DollarSign, Trophy, Clock } from 'lucide-re
 import Link from 'next/link';
 import { Game, Player, HockeyPlayer, Pick } from '@/lib/types';
 import ScoreNotification from '@/components/ScoreNotification';
+import { useAuth } from '@/lib/AuthContext';
 
 export default function GamePage() {
   const params = useParams();
@@ -20,6 +21,8 @@ export default function GamePage() {
   const [draftOrder, setDraftOrder] = useState<number[]>([]);
   const [notification, setNotification] = useState<any>(null);
   const [loadingRoster, setLoadingRoster] = useState(false);
+  const [picking, setPicking] = useState(false);
+  const { user } = useAuth();
 
   useEffect(() => {
     fetchGameData();
@@ -136,6 +139,38 @@ export default function GamePage() {
     }
   };
 
+  const makePick = async (hockeyPlayerId: number | null, isWin: boolean) => {
+    const picker = getCurrentPicker();
+    if (!picker || picking) return;
+
+    setPicking(true);
+    try {
+      const res = await fetch('/api/picks', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          player_id: picker.id,
+          game_id: Number(gameId),
+          hockey_player_id: hockeyPlayerId,
+          is_win_pick: isWin,
+        }),
+      });
+
+      if (!res.ok) {
+        const err = await res.json();
+        alert(err.error || 'Failed to make pick');
+        return;
+      }
+
+      await fetchGameData();
+    } catch (error) {
+      console.error('Error making pick:', error);
+      alert('Failed to make pick');
+    } finally {
+      setPicking(false);
+    }
+  };
+
   const getCurrentPicker = () => {
     if (!game || !draftOrder.length) return null;
     const playerId = draftOrder[game.current_pick_index];
@@ -197,6 +232,10 @@ export default function GamePage() {
   }
 
   const currentPicker = getCurrentPicker();
+  const canPick = game.status === 'drafting' && !!currentPicker && !!user &&
+    (user.id === currentPicker.id || !!user.is_admin);
+  const pickedHockeyPlayerIds = new Set(picks.map(p => p.hockey_player_id).filter(Boolean));
+  const winTaken = picks.some(p => p.is_win_pick);
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-gray-900 via-gray-800 to-gray-900 text-white p-4 md:p-8">
@@ -269,6 +308,16 @@ export default function GamePage() {
                   <div className="text-xl font-bold text-yellow-400">
                     {currentPicker.name}
                   </div>
+                  {user?.id === currentPicker.id && (
+                    <div className="text-sm text-green-400 font-semibold">
+                      Your turn — tap a player below to pick
+                    </div>
+                  )}
+                  {user?.is_admin && user.id !== currentPicker.id && (
+                    <div className="text-sm text-gray-500">
+                      Admin mode — you can pick for {currentPicker.name}
+                    </div>
+                  )}
                 </div>
               </div>
             </div>
@@ -352,44 +401,61 @@ export default function GamePage() {
               </div>
             ) : (
               <div className="space-y-3">
-                <div className="p-4 bg-green-500/10 border border-green-500/30 rounded-lg hover:bg-green-500/20 transition-colors cursor-pointer">
+                <div
+                  onClick={canPick && !winTaken && !picking ? () => makePick(null, true) : undefined}
+                  className={`p-4 rounded-lg transition-colors ${
+                    winTaken
+                      ? 'bg-gray-900/30 border border-gray-700 opacity-50 cursor-not-allowed'
+                      : `bg-green-500/10 border border-green-500/30 ${canPick ? 'hover:bg-green-500/20 cursor-pointer' : ''}`
+                  }`}
+                >
                   <div className="flex items-center justify-between">
                     <div>
                       <div className="font-semibold text-green-400">WIN</div>
                       <div className="text-sm text-gray-400">Team victory</div>
                     </div>
-                    <div className="text-2xl font-bold text-green-400">2</div>
+                    <div className="text-2xl font-bold text-green-400">
+                      {winTaken ? <span className="text-sm text-gray-500">TAKEN</span> : '2'}
+                    </div>
                   </div>
                 </div>
 
-                {hockeyPlayers.map((hp) => (
-                  <div
-                    key={hp.id}
-                    className="p-4 bg-gray-900/50 rounded-lg hover:bg-gray-900/70 transition-colors cursor-pointer"
-                  >
-                    <div className="flex items-center justify-between">
-                      <div>
-                        <div className="font-semibold">
-                          {hp.name}
-                          {hp.jersey_number && (
-                            <span className="text-gray-500 ml-2">#{hp.jersey_number}</span>
-                          )}
+                {hockeyPlayers.map((hp) => {
+                  const taken = pickedHockeyPlayerIds.has(hp.id);
+                  return (
+                    <div
+                      key={hp.id}
+                      onClick={canPick && !taken && !picking ? () => makePick(hp.id, false) : undefined}
+                      className={`p-4 rounded-lg transition-colors ${
+                        taken
+                          ? 'bg-gray-900/30 opacity-50 cursor-not-allowed'
+                          : `bg-gray-900/50 ${canPick ? 'hover:bg-gray-900/70 cursor-pointer ring-1 ring-transparent hover:ring-green-500/50' : ''}`
+                      }`}
+                    >
+                      <div className="flex items-center justify-between">
+                        <div>
+                          <div className="font-semibold">
+                            {hp.name}
+                            {hp.jersey_number && (
+                              <span className="text-gray-500 ml-2">#{hp.jersey_number}</span>
+                            )}
+                          </div>
+                          <div className={`text-sm font-medium ${getPositionColor(hp.position)}`}>
+                            {hp.position === 'F' ? 'Forward' : hp.position === 'D' ? 'Defense' : 'Goalie'}
+                          </div>
                         </div>
-                        <div className={`text-sm font-medium ${getPositionColor(hp.position)}`}>
-                          {hp.position === 'F' ? 'Forward' : hp.position === 'D' ? 'Defense' : 'Goalie'}
-                        </div>
-                      </div>
-                      <div className="text-right">
-                        <div className="text-2xl font-bold">
-                          {hp.position === 'F' ? '1' : hp.position === 'D' ? '2' : '2'}
-                        </div>
-                        <div className="text-xs text-gray-500">
-                          {hp.goals > 0 && `${hp.goals}G`}
+                        <div className="text-right">
+                          <div className="text-2xl font-bold">
+                            {taken ? <span className="text-sm text-gray-500">TAKEN</span> : hp.position === 'F' ? '1' : '2'}
+                          </div>
+                          <div className="text-xs text-gray-500">
+                            {hp.goals > 0 && `${hp.goals}G`}
+                          </div>
                         </div>
                       </div>
                     </div>
-                  </div>
-                ))}
+                  );
+                })}
               </div>
             )}
           </div>
