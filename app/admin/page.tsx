@@ -1,7 +1,7 @@
 'use client';
 
 import { useState, useEffect } from 'react';
-import { Settings, Users, Plus, Trash2, Edit, Lock } from 'lucide-react';
+import { Settings, Users, Plus, Trash2, Edit, Lock, KeyRound } from 'lucide-react';
 import Link from 'next/link';
 import { Player } from '@/lib/types';
 import { useAuth } from '@/lib/AuthContext';
@@ -74,6 +74,32 @@ export default function AdminPage() {
     } catch (error) {
       console.error('Error deleting player:', error);
       alert('Failed to delete player');
+    }
+  };
+
+  const resetPassword = async (id: number, name: string) => {
+    const password = prompt(`Enter a new password for ${name} (min 6 characters):`);
+    if (!password) return;
+    if (password.length < 6) {
+      alert('Password must be at least 6 characters');
+      return;
+    }
+
+    try {
+      const res = await fetch('/api/players/reset-password', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ player_id: id, password }),
+      });
+      if (!res.ok) {
+        const err = await res.json();
+        throw new Error(err.error || 'Failed to reset password');
+      }
+      alert(`Password reset for ${name}`);
+      fetchPlayers();
+    } catch (error) {
+      console.error('Error resetting password:', error);
+      alert(error instanceof Error ? error.message : 'Failed to reset password');
     }
   };
 
@@ -202,12 +228,27 @@ export default function AdminPage() {
                   className="flex items-center justify-between p-4 bg-gray-900/50 rounded-lg hover:bg-gray-900/70 transition-colors"
                 >
                   <div>
-                    <div className="font-semibold text-lg">{player.name}</div>
+                    <div className="font-semibold text-lg">
+                      {player.name}
+                      {player.is_admin && (
+                        <span className="ml-2 text-xs bg-yellow-500/20 text-yellow-400 px-2 py-1 rounded">ADMIN</span>
+                      )}
+                      {!player.has_password && (
+                        <span className="ml-2 text-xs bg-red-500/20 text-red-400 px-2 py-1 rounded">NO PASSWORD</span>
+                      )}
+                    </div>
                     <div className="text-sm text-gray-400">
                       Added {new Date(player.created_at).toLocaleDateString()}
                     </div>
                   </div>
                   <div className="flex gap-2">
+                    <button
+                      onClick={() => resetPassword(player.id, player.name)}
+                      className="px-4 py-2 bg-blue-600 hover:bg-blue-700 rounded-lg font-semibold flex items-center gap-2 transition-colors"
+                    >
+                      <KeyRound className="w-4 h-4" />
+                      Reset PW
+                    </button>
                     <button
                       onClick={() => deletePlayer(player.id, player.name)}
                       className="px-4 py-2 bg-red-600 hover:bg-red-700 rounded-lg font-semibold flex items-center gap-2 transition-colors"

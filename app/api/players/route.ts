@@ -4,7 +4,8 @@ import { getCurrentUser, hashPassword, isAdmin } from '@/lib/auth';
 
 export async function GET() {
   try {
-    const players = db.prepare('SELECT * FROM players ORDER BY name').all();
+    const players = db.prepare('SELECT * FROM players ORDER BY name').all()
+      .map(({ password_hash, ...p }: any) => ({ ...p, has_password: !!password_hash }));
     return NextResponse.json(players);
   } catch (error) {
     console.error('Error fetching players:', error);
