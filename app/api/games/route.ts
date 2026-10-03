@@ -12,9 +12,10 @@ export async function GET(request: NextRequest) {
 
     if (id) {
       const game = db.prepare(`
-        SELECT g.*, p.name as creator_name
+        SELECT g.*, p.name as creator_name, u.name as last_updated_by_name
         FROM games g
         JOIN players p ON g.created_by = p.id
+        LEFT JOIN players u ON g.last_updated_by = u.id
         WHERE g.id = ?
       `).get(id);
       return NextResponse.json(game);
@@ -77,8 +78,14 @@ export async function PUT(request: NextRequest) {
     const body = await request.json();
     const { id, status, draft_order, current_pick_index, period, wild_score, opponent_score } = body;
 
-    if (status === 'final' && !isAdmin(user.userId)) {
-      return NextResponse.json({ error: 'Only an admin can mark a game final' }, { status: 403 });
+    const existingGame: any = db.prepare('SELECT status FROM games WHERE id = ?').get(id);
+    if (!existingGame) {
+      return NextResponse.json({ error: 'Game not found' }, { status: 404 });
+    }
+
+    const editingScore = wild_score !== undefined || opponent_score !== undefined || period !== undefined;
+    if (editingScore && existingGame.status !== 'in_progress' && !isAdmin(user.userId)) {
+      return NextResponse.json({ error: 'Scores can only be updated while the game is in progress' }, { status: 403 });
     }
 
     const updates: string[] = [];
@@ -107,6 +114,12 @@ export async function PUT(request: NextRequest) {
     if (opponent_score !== undefined) {
       updates.push('opponent_score = ?');
       params.push(opponent_score);
+    }
+
+    if (editingScore) {
+      updates.push('last_updated_by = ?');
+      params.push(user.userId);
+      updates.push('score_updated_at = CURRENT_TIMESTAMP');
     }
 
     params.push(id);

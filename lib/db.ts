@@ -190,6 +190,19 @@ function initializeDatabase() {
         sqlite.exec(`ALTER TABLE players ADD COLUMN ${col} ${def}`);
       }
     }
+
+    const gameCols = new Set(
+      (sqlite.prepare('PRAGMA table_info(games)').all() as { name: string }[]).map(c => c.name)
+    );
+    const gameMigrations: [string, string][] = [
+      ['last_updated_by', 'INTEGER'],
+      ['score_updated_at', 'DATETIME'],
+    ];
+    for (const [col, def] of gameMigrations) {
+      if (!gameCols.has(col)) {
+        sqlite.exec(`ALTER TABLE games ADD COLUMN ${col} ${def}`);
+      }
+    }
   }
 }
 

@@ -243,6 +243,66 @@ export default function GamePage() {
     }
   };
 
+  const updateGoals = async (hockeyPlayerId: number, goals: number) => {
+    try {
+      const res = await fetch('/api/hockey-players', {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ id: hockeyPlayerId, goals }),
+      });
+      if (!res.ok) {
+        const err = await res.json().catch(() => ({}));
+        alert(err.error || 'Failed to update goals');
+        return;
+      }
+      fetchGameData();
+    } catch (error) {
+      console.error('Error updating goals:', error);
+      alert('Failed to update goals');
+    }
+  };
+
+  const adjustScore = async (field: 'opponent_score' | 'period', delta: number) => {
+    if (!game) return;
+    const newValue = Math.max(0, (game[field] || 0) + delta);
+    try {
+      const res = await fetch('/api/games', {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ id: Number(gameId), [field]: newValue }),
+      });
+      if (!res.ok) {
+        const err = await res.json().catch(() => ({}));
+        alert(err.error || 'Failed to update score');
+        return;
+      }
+      fetchGameData();
+    } catch (error) {
+      console.error('Error updating score:', error);
+      alert('Failed to update score');
+    }
+  };
+
+  const completeGame = async () => {
+    if (!confirm('Mark this game complete? This calculates skins and creates the payment balances.')) return;
+    try {
+      const res = await fetch('/api/games', {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ id: Number(gameId), status: 'final' }),
+      });
+      if (!res.ok) {
+        const err = await res.json().catch(() => ({}));
+        alert(err.error || 'Failed to complete game');
+        return;
+      }
+      fetchGameData();
+    } catch (error) {
+      console.error('Error completing game:', error);
+      alert('Failed to complete game');
+    }
+  };
+
   const skipTurn = async () => {
     const picker = getCurrentPicker();
     if (!picker) return;
@@ -337,6 +397,10 @@ export default function GamePage() {
   );
   const pickedHockeyPlayerIds = new Set(picks.map(p => p.hockey_player_id).filter(Boolean));
   const winTaken = picks.some(p => p.is_win_pick);
+  const canEditScore = !!user && (
+    game.status === 'in_progress' ||
+    (user.is_admin && ['ready', 'in_progress', 'final'].includes(game.status))
+  );
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-gray-900 via-gray-800 to-gray-900 text-white p-4 md:p-8">
@@ -384,10 +448,44 @@ export default function GamePage() {
                 <span className="text-gray-500">-</span>
                 <span className="text-gray-300">{game.opponent_score}</span>
               </div>
-              <div className="text-center text-gray-400">
-                <Clock className="w-4 h-4 inline mr-2" />
-                Period {game.period}
+              <div className="text-center text-gray-400 flex items-center justify-center gap-2">
+                <Clock className="w-4 h-4" />
+                {canEditScore ? (
+                  <>
+                    <button onClick={() => adjustScore('period', -1)} disabled={game.period <= 0} className="w-7 h-7 bg-gray-700 hover:bg-gray-600 disabled:opacity-40 rounded font-bold">−</button>
+                    <span>Period {game.period}</span>
+                    <button onClick={() => adjustScore('period', 1)} className="w-7 h-7 bg-gray-700 hover:bg-gray-600 rounded font-bold">+</button>
+                  </>
+                ) : (
+                  <span>Period {game.period}</span>
+                )}
               </div>
+              {game.last_updated_by_name && game.score_updated_at && (
+                <div className="text-center text-xs text-gray-500 mt-2">
+                  Last update: {game.last_updated_by_name} at {new Date(game.score_updated_at + 'Z').toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit' })}
+                </div>
+              )}
+
+              {canEditScore && (
+                <div className="mt-4 pt-4 border-t border-gray-800 space-y-3">
+                  <div className="flex items-center justify-between bg-gray-800/50 rounded-lg px-4 py-3">
+                    <span className="text-sm text-gray-300">Opponent goals</span>
+                    <div className="flex items-center gap-3">
+                      <button onClick={() => adjustScore('opponent_score', -1)} disabled={game.opponent_score <= 0} className="w-8 h-8 bg-gray-700 hover:bg-gray-600 disabled:opacity-40 rounded font-bold">−</button>
+                      <span className="text-xl font-bold w-6 text-center">{game.opponent_score}</span>
+                      <button onClick={() => adjustScore('opponent_score', 1)} className="w-8 h-8 bg-gray-700 hover:bg-gray-600 rounded font-bold">+</button>
+                    </div>
+                  </div>
+                  {user && (
+                    <button
+                      onClick={completeGame}
+                      className="w-full px-6 py-3 bg-green-600 hover:bg-green-700 rounded-lg font-semibold transition-colors"
+                    >
+                      Complete Game — Calculate Skins &amp; Balances
+                    </button>
+                  )}
+                </div>
+              )}
             </div>
           )}
 
@@ -576,7 +674,10 @@ export default function GamePage() {
           </div>
 
           <div className="bg-gray-800/50 backdrop-blur rounded-lg p-6">
-            <h2 className="text-2xl font-bold mb-4">Available Picks</h2>
+            <h2 className="text-2xl font-bold mb-4">{canEditScore ? 'Scoring' : 'Available Picks'}</h2>
+            {canEditScore && (
+              <p className="text-xs text-gray-500 -mt-3 mb-4">Tap + when a Wild player scores (for a goalie, + = a goal allowed). Wild score updates automatically.</p>
+            )}
 
             {hockeyPlayers.length === 0 && (game.status === 'upcoming' || game.status === 'drafting') ? (
               <button
@@ -636,12 +737,31 @@ export default function GamePage() {
                           </div>
                         </div>
                         <div className="text-right">
-                          <div className="text-2xl font-bold">
-                            {taken ? <span className="text-sm text-gray-500">TAKEN</span> : hp.position === 'F' ? '1' : '2'}
-                          </div>
-                          <div className="text-xs text-gray-500">
-                            {hp.goals > 0 && `${hp.goals}G`}
-                          </div>
+                          {canEditScore ? (
+                            <div className="flex items-center gap-2">
+                              <button
+                                onClick={(e) => { e.stopPropagation(); updateGoals(hp.id, Math.max(0, hp.goals - 1)); }}
+                                disabled={hp.goals <= 0}
+                                className="w-8 h-8 bg-gray-700 hover:bg-gray-600 disabled:opacity-40 rounded font-bold"
+                              >−</button>
+                              <span className="text-yellow-400 font-bold w-12 text-center">
+                                {hp.goals}<span className="text-xs font-normal">{hp.position === 'G' ? ' GA' : ' G'}</span>
+                              </span>
+                              <button
+                                onClick={(e) => { e.stopPropagation(); updateGoals(hp.id, hp.goals + 1); }}
+                                className="w-8 h-8 bg-green-600 hover:bg-green-500 rounded font-bold"
+                              >+</button>
+                            </div>
+                          ) : (
+                            <>
+                              <div className="text-2xl font-bold">
+                                {taken ? <span className="text-sm text-gray-500">TAKEN</span> : hp.position === 'F' ? '1' : '2'}
+                              </div>
+                              <div className="text-xs text-gray-500">
+                                {hp.goals > 0 && `${hp.goals}${hp.position === 'G' ? 'GA' : 'G'}`}
+                              </div>
+                            </>
+                          )}
                         </div>
                       </div>
                     </div>

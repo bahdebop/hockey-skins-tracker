@@ -25,6 +25,9 @@ export interface Game {
   period: number; // 0=not started, 1-3=regulation, 4=OT, 5=SO
   wild_score: number;
   opponent_score: number;
+  last_updated_by?: number;
+  last_updated_by_name?: string;
+  score_updated_at?: string;
   created_at: string;
 }
 

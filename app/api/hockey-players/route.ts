@@ -1,7 +1,8 @@
 import { NextRequest, NextResponse } from 'next/server';
 import db from '@/lib/db';
 import { eventManager } from '@/lib/eventManager';
-import { recomputePickSkins } from '@/lib/scoring';
+import { recomputePickSkins, settleGame } from '@/lib/scoring';
+import { getCurrentUser, isAdmin } from '@/lib/auth';
 
 export async function GET(request: NextRequest) {
   try {
@@ -51,18 +52,43 @@ export async function POST(request: NextRequest) {
 
 export async function PUT(request: NextRequest) {
   try {
+    const user = await getCurrentUser();
+    if (!user) {
+      return NextResponse.json({ error: 'You must be logged in to update scores' }, { status: 401 });
+    }
+
     const body = await request.json();
     const { id, goals } = body;
 
     // Get old goals count for comparison
     const oldPlayer: any = db.prepare('SELECT * FROM hockey_players WHERE id = ?').get(id);
-    const oldGoals = oldPlayer?.goals || 0;
+    if (!oldPlayer) {
+      return NextResponse.json({ error: 'Player not found' }, { status: 404 });
+    }
+    const oldGoals = oldPlayer.goals || 0;
+
+    const gameForAuth: any = db.prepare('SELECT status FROM games WHERE id = ?').get(oldPlayer.game_id);
+    if (gameForAuth?.status !== 'in_progress' && !isAdmin(user.userId)) {
+      return NextResponse.json({ error: 'Scoring is only open while the game is in progress' }, { status: 403 });
+    }
 
     db.prepare('UPDATE hockey_players SET goals = ? WHERE id = ?').run(goals, id);
     const player: any = db.prepare('SELECT * FROM hockey_players WHERE id = ?').get(id);
 
     if (player) {
       recomputePickSkins(player.game_id);
+
+      db.prepare(`
+        UPDATE games SET
+          wild_score = (SELECT COALESCE(SUM(goals), 0) FROM hockey_players WHERE game_id = ?),
+          last_updated_by = ?,
+          score_updated_at = CURRENT_TIMESTAMP
+        WHERE id = ?
+      `).run(player.game_id, user.userId, player.game_id);
+
+      if (gameForAuth?.status === 'final') {
+        settleGame(player.game_id);
+      }
     }
     
     // Broadcast goal update if goals increased
