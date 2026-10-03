@@ -141,8 +141,12 @@ export default function GamePage() {
   };
 
   const makePick = async (hockeyPlayerId: number | null, isWin: boolean) => {
-    const picker = getCurrentPicker();
-    if (!picker || picking) return;
+    const skipped = user
+      ? picks.find(p => p.player_id === user.id && !p.is_win_pick && p.hockey_player_id == null)
+      : undefined;
+    // Skipped players fill their own slot; otherwise the pick belongs to the current picker
+    const targetPlayerId = skipped && !user?.is_admin ? user!.id : getCurrentPicker()?.id;
+    if (!targetPlayerId || picking) return;
 
     setPicking(true);
     try {
@@ -150,7 +154,7 @@ export default function GamePage() {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
-          player_id: picker.id,
+          player_id: targetPlayerId,
           game_id: Number(gameId),
           hockey_player_id: hockeyPlayerId,
           is_win_pick: isWin,
@@ -192,6 +196,31 @@ export default function GamePage() {
       alert('Failed to change pick');
     } finally {
       setEditingPickId(null);
+    }
+  };
+
+  const skipTurn = async () => {
+    const picker = getCurrentPicker();
+    if (!picker) return;
+    if (!confirm(`Skip ${picker.name}? You can assign their pick later.`)) return;
+
+    try {
+      const res = await fetch('/api/picks', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ game_id: Number(gameId), skip: true }),
+      });
+
+      if (!res.ok) {
+        const err = await res.json();
+        alert(err.error || 'Failed to skip');
+        return;
+      }
+
+      await fetchGameData();
+    } catch (error) {
+      console.error('Error skipping pick:', error);
+      alert('Failed to skip');
     }
   };
 
@@ -256,8 +285,11 @@ export default function GamePage() {
   }
 
   const currentPicker = getCurrentPicker();
-  const canPick = game.status === 'drafting' && !!currentPicker && !!user &&
-    (user.id === currentPicker.id || !!user.is_admin);
+  const isSkippedPick = (p: Pick) => !p.is_win_pick && p.hockey_player_id == null;
+  const mySkippedPick = user ? picks.find(p => p.player_id === user.id && isSkippedPick(p)) : undefined;
+  const canPick = game.status === 'drafting' && !!user && (
+    user.is_admin ? !!currentPicker : currentPicker?.id === user.id || !!mySkippedPick
+  );
   const pickedHockeyPlayerIds = new Set(picks.map(p => p.hockey_player_id).filter(Boolean));
   const winTaken = picks.some(p => p.is_win_pick);
 
@@ -343,7 +375,21 @@ export default function GamePage() {
                     </div>
                   )}
                 </div>
+                {user?.is_admin && (
+                  <button
+                    onClick={skipTurn}
+                    className="ml-auto px-3 py-2 bg-gray-700 hover:bg-gray-600 rounded-lg text-sm font-semibold transition-colors"
+                  >
+                    Skip {currentPicker.name.split(' ')[0]}
+                  </button>
+                )}
               </div>
+            </div>
+          )}
+
+          {game.status === 'drafting' && mySkippedPick && (
+            <div className="bg-orange-500/10 border border-orange-500/30 rounded-lg p-4 mt-4 text-orange-300 text-sm">
+              Your pick was skipped — tap a player below anytime to complete it.
             </div>
           )}
         </div>
@@ -415,6 +461,18 @@ export default function GamePage() {
                                         </option>
                                       ))}
                                   </select>
+                                ) : isSkippedPick(pick) ? (
+                                  <>
+                                    <span className="text-orange-400">SKIPPED — awaiting pick</span>
+                                    {user?.is_admin && game.status !== 'upcoming' && (
+                                      <button
+                                        onClick={() => setEditingPickId(pick.id)}
+                                        className="ml-2 text-xs text-blue-400 hover:text-blue-300"
+                                      >
+                                        assign
+                                      </button>
+                                    )}
+                                  </>
                                 ) : (
                                   <>
                                     {pick.is_win_pick ? (
