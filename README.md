@@ -53,7 +53,20 @@ JWT_SECRET=your-super-secret-jwt-key
 
 # Admin password
 ADMIN_PASSWORD=your_password_here
+
+# Web Push notifications - generate with: npx web-push generate-vapid-keys
+VAPID_PUBLIC_KEY=
+VAPID_PRIVATE_KEY=
+VAPID_SUBJECT=mailto:you@example.com
 ```
+
+## Push Notifications
+
+The app is a PWA — users can enable push alerts for new games, their draft
+turn (including skips), and final scores via **Profile → Notifications**.
+
+On iPhone, web push only works for installed PWAs: Share → **Add to Home
+Screen**, open the app from the home icon, then enable notifications.
 
 ## Deployment
 
@@ -66,6 +79,7 @@ Deploy to Railway:
    - `JWT_SECRET` (generate a strong random string)
    - `RAILWAY_VOLUME_MOUNT_PATH=/data`
    - `ADMIN_PASSWORD` (optional)
+   - `VAPID_PUBLIC_KEY` / `VAPID_PRIVATE_KEY` / `VAPID_SUBJECT` (optional — push notifications)
 5. Deploy!
 
 > Note: `DATABASE_URL` / PostgreSQL is not currently supported — do not set it.

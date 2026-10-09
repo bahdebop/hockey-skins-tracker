@@ -4,6 +4,7 @@ import { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import { User, Mail, Phone, DollarSign, LogOut, Save } from 'lucide-react';
 import { useAuth } from '@/lib/AuthContext';
+import NotificationToggle from '@/components/NotificationToggle';
 
 export default function ProfilePage() {
   const router = useRouter();
@@ -179,6 +180,14 @@ export default function ProfilePage() {
                   />
                 </div>
               </div>
+            </div>
+
+            <div>
+              <h3 className="text-lg font-semibold mb-2">Notifications</h3>
+              <p className="text-sm text-gray-400 mb-3">
+                Get push alerts for new games, your draft turn, and final scores.
+              </p>
+              <NotificationToggle />
             </div>
 
             <div>

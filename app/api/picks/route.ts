@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import db from '@/lib/db';
 import { getCurrentUser, isAdmin } from '@/lib/auth';
 import { recomputePickSkins, settleGame } from '@/lib/scoring';
+import { sendPushToPlayers } from '@/lib/push';
 
 export async function GET(request: NextRequest) {
   try {
@@ -65,12 +66,27 @@ export async function POST(request: NextRequest) {
     const advanceDraft = () => {
       const nextIndex = (gameForAuth.current_pick_index + 1) % turnOrder.length;
       db.prepare('UPDATE games SET current_pick_index = ? WHERE id = ?').run(nextIndex, game_id);
+      const nextPickerId = turnOrder[nextIndex];
+      if (nextPickerId) {
+        sendPushToPlayers([nextPickerId], {
+          title: 'Your turn to draft!',
+          body: `vs ${gameForAuth.opponent} — tap to make your pick`,
+          url: `/games/${game_id}`,
+          tag: `draft-turn-${game_id}-${nextIndex}`,
+        });
+      }
     };
 
     const draftComplete = (): boolean => {
       const { c }: any = db.prepare('SELECT COUNT(*) as c FROM picks WHERE game_id = ?').get(game_id);
       if (turnOrder.length > 0 && c >= turnOrder.length) {
         db.prepare("UPDATE games SET status = 'ready' WHERE id = ?").run(game_id);
+        sendPushToPlayers(turnOrder, {
+          title: 'Draft complete',
+          body: `vs ${gameForAuth.opponent} — waiting for puck drop`,
+          url: `/games/${game_id}`,
+          tag: `draft-done-${game_id}`,
+        });
         return true;
       }
       return false;
@@ -128,6 +144,13 @@ export async function POST(request: NextRequest) {
         INSERT INTO picks (player_id, game_id, hockey_player_id, is_win_pick, skins)
         VALUES (?, ?, NULL, 0, 0)
       `).run(currentPickerId, game_id);
+
+      sendPushToPlayers([currentPickerId], {
+        title: 'Your draft turn was skipped',
+        body: `vs ${gameForAuth.opponent} — you can still make your pick anytime`,
+        url: `/games/${game_id}`,
+        tag: `draft-skipped-${game_id}`,
+      });
 
       if (!draftComplete()) advanceDraft();
       return NextResponse.json(pickWithNames(result.lastInsertRowid));

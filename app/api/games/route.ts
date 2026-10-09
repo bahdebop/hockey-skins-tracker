@@ -3,6 +3,7 @@ import db from '@/lib/db';
 import { populateRosterForGame } from '@/lib/nhl';
 import { recomputePickSkins, settleGame } from '@/lib/scoring';
 import { getCurrentUser, isAdmin } from '@/lib/auth';
+import { sendPushToPlayers } from '@/lib/push';
 
 export async function GET(request: NextRequest) {
   try {
@@ -60,6 +61,16 @@ export async function POST(request: NextRequest) {
       console.error('Failed to auto-populate Wild roster:', e);
     }
 
+    const others = (db.prepare('SELECT DISTINCT player_id FROM push_subscriptions').all() as { player_id: number }[])
+      .map(r => r.player_id)
+      .filter(pid => pid !== Number(created_by));
+    sendPushToPlayers(others, {
+      title: 'New game posted!',
+      body: `Wild vs ${opponent} — ${new Date(game_date).toLocaleDateString('en-US', { month: 'short', day: 'numeric' })}. Draft coming soon.`,
+      url: `/games/${gameId}`,
+      tag: `new-game-${gameId}`,
+    });
+
     const game = db.prepare('SELECT * FROM games WHERE id = ?').get(gameId);
     return NextResponse.json(game);
   } catch (error) {
@@ -78,7 +89,7 @@ export async function PUT(request: NextRequest) {
     const body = await request.json();
     const { id, status, draft_order, current_pick_index, period, wild_score, opponent_score } = body;
 
-    const existingGame: any = db.prepare('SELECT status FROM games WHERE id = ?').get(id);
+    const existingGame: any = db.prepare('SELECT * FROM games WHERE id = ?').get(id);
     if (!existingGame) {
       return NextResponse.json({ error: 'Game not found' }, { status: 404 });
     }
@@ -128,6 +139,24 @@ export async function PUT(request: NextRequest) {
 
     if (status === 'final') {
       settleGame(id);
+      const pickers = (db.prepare('SELECT DISTINCT player_id FROM picks WHERE game_id = ?').all(id) as { player_id: number }[])
+        .map(r => r.player_id);
+      sendPushToPlayers(pickers, {
+        title: 'Game final — balances settled',
+        body: `MIN ${wild_score ?? existingGame.wild_score} - ${opponent_score ?? existingGame.opponent_score} vs ${existingGame.opponent}. Check what you're owed.`,
+        url: '/balance',
+        tag: `game-final-${id}`,
+      });
+    } else if (status === 'drafting' && draft_order !== undefined) {
+      const order: number[] = JSON.parse(draft_order);
+      if (order.length > 0) {
+        sendPushToPlayers([order[0]], {
+          title: 'Draft started — you pick first!',
+          body: `vs ${existingGame.opponent} — tap to make your pick`,
+          url: `/games/${id}`,
+          tag: `draft-start-${id}`,
+        });
+      }
     } else if (wild_score !== undefined || opponent_score !== undefined) {
       recomputePickSkins(id);
     }

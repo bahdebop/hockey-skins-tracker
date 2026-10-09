@@ -17,6 +17,15 @@ const geistMono = Geist_Mono({
 export const metadata: Metadata = {
   title: "Hockey Skins Tracker",
   description: "Track your hockey skins pool games",
+  manifest: "/manifest.webmanifest",
+  appleWebApp: {
+    capable: true,
+    statusBarStyle: "black-translucent",
+    title: "Skins",
+  },
+  icons: {
+    apple: "/icons/apple-touch-icon.png",
+  },
 };
 
 export default function RootLayout({

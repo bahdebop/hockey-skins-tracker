@@ -203,6 +203,19 @@ function initializeDatabase() {
         sqlite.exec(`ALTER TABLE games ADD COLUMN ${col} ${def}`);
       }
     }
+
+    sqlite.exec(`
+      CREATE TABLE IF NOT EXISTS push_subscriptions (
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        player_id INTEGER NOT NULL,
+        endpoint TEXT UNIQUE NOT NULL,
+        p256dh TEXT NOT NULL,
+        auth TEXT NOT NULL,
+        user_agent TEXT,
+        created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+        FOREIGN KEY (player_id) REFERENCES players(id)
+      )
+    `);
   }
 }
 
