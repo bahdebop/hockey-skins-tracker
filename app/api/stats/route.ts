@@ -28,7 +28,12 @@ export async function GET(request: NextRequest) {
       const mine = picks.filter((pk) => pk.player_id === p.id);
       const totalSkins = mine.reduce((s, pk) => s + pk.skins, 0);
       const gamesPlayed = new Set(mine.map((pk) => pk.game_id)).size;
-      const totalSpent = mine.reduce((s, pk) => s + pk.pot_amount, 0);
+      // Games with zero total skins settle as a push — nobody wins or
+      // loses, so the ante isn't counted toward spend for those games.
+      const totalSpent = mine.reduce((s, pk) => {
+        const t = gameTotals.get(pk.game_id);
+        return t && t.skins > 0 ? s + pk.pot_amount : s;
+      }, 0);
       const totalWon = mine.reduce((s, pk) => s + pk.skins * (skinValue.get(pk.game_id) || 0), 0);
 
       return {
