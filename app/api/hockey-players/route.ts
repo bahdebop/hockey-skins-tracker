@@ -58,7 +58,7 @@ export async function PUT(request: NextRequest) {
     }
 
     const body = await request.json();
-    const { id, goals } = body;
+    const { id, goals, goals_scored } = body;
 
     // Get old goals count for comparison
     const oldPlayer: any = db.prepare('SELECT * FROM hockey_players WHERE id = ?').get(id);
@@ -66,37 +66,61 @@ export async function PUT(request: NextRequest) {
       return NextResponse.json({ error: 'Player not found' }, { status: 404 });
     }
     const oldGoals = oldPlayer.goals || 0;
+    const oldGoalsScored = oldPlayer.goals_scored || 0;
 
     const gameForAuth: any = db.prepare('SELECT status FROM games WHERE id = ?').get(oldPlayer.game_id);
     if (gameForAuth?.status !== 'in_progress' && !isAdmin(user.userId)) {
       return NextResponse.json({ error: 'Scoring is only open while the game is in progress' }, { status: 403 });
     }
 
-    db.prepare('UPDATE hockey_players SET goals = ? WHERE id = ?').run(goals, id);
+    if (goals !== undefined) {
+      db.prepare('UPDATE hockey_players SET goals = ? WHERE id = ?').run(goals, id);
+    }
+    if (goals_scored !== undefined) {
+      db.prepare('UPDATE hockey_players SET goals_scored = ? WHERE id = ?').run(goals_scored, id);
+    }
     const player: any = db.prepare('SELECT * FROM hockey_players WHERE id = ?').get(id);
 
     if (player) {
       recomputePickSkins(player.game_id);
 
+      // Wild score = skater goals + goalie-scored goals. Opponent score
+      // = goals allowed by Wild goalies.
       db.prepare(`
         UPDATE games SET
-          wild_score = (SELECT COALESCE(SUM(goals), 0) FROM hockey_players WHERE game_id = ?),
+          wild_score = (SELECT COALESCE(SUM(CASE WHEN position = 'G' THEN goals_scored ELSE goals END), 0)
+                        FROM hockey_players WHERE game_id = ?),
+          opponent_score = (SELECT COALESCE(SUM(CASE WHEN position = 'G' THEN goals ELSE 0 END), 0)
+                            FROM hockey_players WHERE game_id = ?),
           last_updated_by = ?,
           score_updated_at = CURRENT_TIMESTAMP
         WHERE id = ?
-      `).run(player.game_id, user.userId, player.game_id);
+      `).run(player.game_id, player.game_id, user.userId, player.game_id);
 
       if (gameForAuth?.status === 'final') {
         settleGame(player.game_id);
       }
     }
-    
-    // Broadcast goal update if goals increased
-    if (player && goals > oldGoals) {
+
+    // Broadcast goal/GA updates
+    if (player && goals_scored !== undefined && goals_scored > oldGoalsScored) {
+      const goalDiff = goals_scored - oldGoalsScored;
+      eventManager.broadcast(player.game_id.toString(), 'goal_scored', {
+        playerId: player.id,
+        playerName: player.name,
+        position: player.position,
+        goals: player.goals_scored,
+        goalDiff,
+        skinsChange: goalDiff * 2,
+        kind: 'goalie_goal',
+        timestamp: Date.now(),
+      });
+    }
+    if (player && goals !== undefined && goals > oldGoals) {
       const goalDiff = goals - oldGoals;
       const skinsPerGoal = player.position === 'F' ? 1 : player.position === 'D' ? 2 : -1;
       const skinsChange = player.position === 'G' ? -goalDiff : goalDiff * skinsPerGoal;
-      
+
       eventManager.broadcast(player.game_id.toString(), 'goal_scored', {
         playerId: player.id,
         playerName: player.name,
@@ -104,6 +128,7 @@ export async function PUT(request: NextRequest) {
         goals: player.goals,
         goalDiff,
         skinsChange,
+        kind: player.position === 'G' ? 'goal_allowed' : 'scored',
         timestamp: Date.now(),
       });
     }

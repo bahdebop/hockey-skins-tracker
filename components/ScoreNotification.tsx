@@ -9,6 +9,7 @@ interface Notification {
   position: string;
   goals: number;
   skinsChange: number;
+  kind?: 'scored' | 'goalie_goal' | 'goal_allowed';
 }
 
 interface ScoreNotificationProps {
@@ -62,7 +63,13 @@ export default function ScoreNotification({ notification, onClose }: ScoreNotifi
           <div className="flex items-center gap-3 flex-1">
             <Target className="w-8 h-8 text-white" />
             <div className="text-white">
-              <div className="font-bold text-lg">{notification.playerName} scored!</div>
+              <div className="font-bold text-lg">
+                {notification.kind === 'goal_allowed'
+                  ? `${notification.playerName} allowed a goal`
+                  : notification.kind === 'goalie_goal'
+                    ? `${notification.playerName} scored a goalie goal!`
+                    : `${notification.playerName} scored!`}
+              </div>
               <div className="text-sm opacity-90">
                 {getPositionLabel(notification.position)} • {notification.goals} {notification.goals === 1 ? 'goal' : 'goals'}
               </div>

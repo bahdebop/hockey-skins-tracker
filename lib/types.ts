@@ -38,7 +38,8 @@ export interface HockeyPlayer {
   name: string;
   position: 'F' | 'D' | 'G'; // Forward, Defense, Goalie
   jersey_number?: number;
-  goals: number;
+  goals: number;          // skaters: goals scored. goalies: goals allowed
+  goals_scored: number;   // goalies only: goals they scored themselves
   created_at: string;
 }
 

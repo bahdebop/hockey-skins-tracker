@@ -3,11 +3,12 @@ import db from './db';
 // Skins rules:
 //   Forward goal   = 1 skin
 //   Defense goal   = 2 skins
-//   Goalie         = 3 skins base, -1 per goal against (hp.goals = goals against)
+//   Goalie         = 3 skins base, -1 per goal against (hp.goals = goals
+//                    against), +2 per goal the goalie scores (goals_scored)
 //   Win pick       = 2 skins if Wild wins
 export function computeSkinsForPick(
   pick: { is_win_pick: number | boolean; hockey_player_id: number | null },
-  hockeyPlayer: { position: string; goals: number } | null,
+  hockeyPlayer: { position: string; goals: number; goals_scored?: number } | null,
   game: { wild_score: number; opponent_score: number }
 ): number {
   if (pick.is_win_pick) {
@@ -16,7 +17,9 @@ export function computeSkinsForPick(
   if (!hockeyPlayer) return 0;
   if (hockeyPlayer.position === 'F') return hockeyPlayer.goals;
   if (hockeyPlayer.position === 'D') return hockeyPlayer.goals * 2;
-  if (hockeyPlayer.position === 'G') return Math.max(0, 3 - hockeyPlayer.goals);
+  if (hockeyPlayer.position === 'G') {
+    return Math.max(0, 3 - hockeyPlayer.goals) + (hockeyPlayer.goals_scored || 0) * 2;
+  }
   return 0;
 }
 
@@ -26,7 +29,7 @@ export function recomputePickSkins(gameId: number): void {
 
   const picks: any[] = db.prepare(`
     SELECT p.id, p.is_win_pick, p.hockey_player_id,
-           hp.position, hp.goals
+           hp.position, hp.goals, hp.goals_scored
     FROM picks p
     LEFT JOIN hockey_players hp ON p.hockey_player_id = hp.id
     WHERE p.game_id = ?
@@ -36,7 +39,7 @@ export function recomputePickSkins(gameId: number): void {
   for (const p of picks) {
     const skins = computeSkinsForPick(
       p,
-      p.hockey_player_id ? { position: p.position, goals: p.goals } : null,
+      p.hockey_player_id ? { position: p.position, goals: p.goals, goals_scored: p.goals_scored } : null,
       game
     );
     update.run(skins, p.id);

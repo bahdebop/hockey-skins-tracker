@@ -204,6 +204,13 @@ function initializeDatabase() {
       }
     }
 
+    const hpCols = new Set(
+      (sqlite.prepare('PRAGMA table_info(hockey_players)').all() as { name: string }[]).map(c => c.name)
+    );
+    if (!hpCols.has('goals_scored')) {
+      sqlite.exec('ALTER TABLE hockey_players ADD COLUMN goals_scored INTEGER DEFAULT 0');
+    }
+
     sqlite.exec(`
       CREATE TABLE IF NOT EXISTS push_subscriptions (
         id INTEGER PRIMARY KEY AUTOINCREMENT,

@@ -47,6 +47,7 @@ export default function GamePage() {
             position: message.data.position,
             goals: message.data.goals,
             skinsChange: message.data.skinsChange,
+            kind: message.data.kind,
           });
 
           // Refresh game data to show updated scores
@@ -238,12 +239,12 @@ export default function GamePage() {
     }
   };
 
-  const updateGoals = async (hockeyPlayerId: number, goals: number) => {
+  const updateGoals = async (hockeyPlayerId: number, field: 'goals' | 'goals_scored', value: number) => {
     try {
       const res = await fetch('/api/hockey-players', {
         method: 'PUT',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ id: hockeyPlayerId, goals }),
+        body: JSON.stringify({ id: hockeyPlayerId, [field]: value }),
       });
       if (!res.ok) {
         const err = await res.json().catch(() => ({}));
@@ -363,7 +364,7 @@ export default function GamePage() {
     } else if (hockeyPlayer.position === 'D') {
       return hockeyPlayer.goals * 2;
     } else if (hockeyPlayer.position === 'G') {
-      return Math.max(0, 3 - hockeyPlayer.goals);
+      return Math.max(0, 3 - hockeyPlayer.goals) + (hockeyPlayer.goals_scored || 0) * 2;
     }
     return 0;
   };
@@ -463,14 +464,6 @@ export default function GamePage() {
 
               {canEditScore && (
                 <div className="mt-4 pt-4 border-t border-gray-800 space-y-3">
-                  <div className="flex items-center justify-between bg-gray-800/50 rounded-lg px-4 py-3">
-                    <span className="text-sm text-gray-300">Opponent goals</span>
-                    <div className="flex items-center gap-3">
-                      <button onClick={() => adjustScore('opponent_score', -1)} disabled={game.opponent_score <= 0} className="w-8 h-8 bg-gray-700 hover:bg-gray-600 disabled:opacity-40 rounded font-bold">−</button>
-                      <span className="text-xl font-bold w-6 text-center">{game.opponent_score}</span>
-                      <button onClick={() => adjustScore('opponent_score', 1)} className="w-8 h-8 bg-gray-700 hover:bg-gray-600 rounded font-bold">+</button>
-                    </div>
-                  </div>
                   {user && (
                     <button
                       onClick={completeGame}
@@ -671,7 +664,7 @@ export default function GamePage() {
           <div className="bg-gray-800/50 backdrop-blur rounded-lg p-6">
             <h2 className="text-2xl font-bold mb-4">{canEditScore ? 'Scoring' : 'Available Picks'}</h2>
             {canEditScore && (
-              <p className="text-xs text-gray-500 -mt-3 mb-4">Tap + when a Wild player scores (for a goalie, + = a goal allowed). Wild score updates automatically.</p>
+              <p className="text-xs text-gray-500 -mt-3 mb-4">Tap + under G when a Wild player scores. For a goalie, + under GA is a goal allowed (feeds the opponent score); + under G means the goalie scored!</p>
             )}
 
             {hockeyPlayers.length === 0 && (game.status === 'upcoming' || game.status === 'drafting') ? (
@@ -733,19 +726,37 @@ export default function GamePage() {
                         </div>
                         <div className="text-right">
                           {canEditScore ? (
-                            <div className="flex items-center gap-2">
-                              <button
-                                onClick={(e) => { e.stopPropagation(); updateGoals(hp.id, Math.max(0, hp.goals - 1)); }}
-                                disabled={hp.goals <= 0}
-                                className="w-8 h-8 bg-gray-700 hover:bg-gray-600 disabled:opacity-40 rounded font-bold"
-                              >−</button>
-                              <span className="text-yellow-400 font-bold w-12 text-center">
-                                {hp.goals}<span className="text-xs font-normal">{hp.position === 'G' ? ' GA' : ' G'}</span>
-                              </span>
-                              <button
-                                onClick={(e) => { e.stopPropagation(); updateGoals(hp.id, hp.goals + 1); }}
-                                className="w-8 h-8 bg-green-600 hover:bg-green-500 rounded font-bold"
-                              >+</button>
+                            <div className="flex flex-col gap-1.5">
+                              <div className="flex items-center gap-2">
+                                <button
+                                  onClick={(e) => { e.stopPropagation(); updateGoals(hp.id, hp.position === 'G' ? 'goals_scored' : 'goals', Math.max(0, (hp.position === 'G' ? hp.goals_scored : hp.goals) - 1)); }}
+                                  disabled={(hp.position === 'G' ? hp.goals_scored : hp.goals) <= 0}
+                                  className="w-8 h-8 bg-gray-700 hover:bg-gray-600 disabled:opacity-40 rounded font-bold"
+                                >−</button>
+                                <span className="text-yellow-400 font-bold w-12 text-center">
+                                  {hp.position === 'G' ? hp.goals_scored : hp.goals}<span className="text-xs font-normal"> G</span>
+                                </span>
+                                <button
+                                  onClick={(e) => { e.stopPropagation(); updateGoals(hp.id, hp.position === 'G' ? 'goals_scored' : 'goals', (hp.position === 'G' ? hp.goals_scored : hp.goals) + 1); }}
+                                  className="w-8 h-8 bg-green-600 hover:bg-green-500 rounded font-bold"
+                                >+</button>
+                              </div>
+                              {hp.position === 'G' && (
+                                <div className="flex items-center gap-2">
+                                  <button
+                                    onClick={(e) => { e.stopPropagation(); updateGoals(hp.id, 'goals', Math.max(0, hp.goals - 1)); }}
+                                    disabled={hp.goals <= 0}
+                                    className="w-8 h-8 bg-gray-700 hover:bg-gray-600 disabled:opacity-40 rounded font-bold"
+                                  >−</button>
+                                  <span className="text-red-400 font-bold w-12 text-center">
+                                    {hp.goals}<span className="text-xs font-normal"> GA</span>
+                                  </span>
+                                  <button
+                                    onClick={(e) => { e.stopPropagation(); updateGoals(hp.id, 'goals', hp.goals + 1); }}
+                                    className="w-8 h-8 bg-red-600 hover:bg-red-500 rounded font-bold"
+                                  >+</button>
+                                </div>
+                              )}
                             </div>
                           ) : (
                             <>
@@ -753,7 +764,9 @@ export default function GamePage() {
                                 {taken ? <span className="text-sm text-gray-500">TAKEN</span> : hp.position === 'F' ? '1' : hp.position === 'D' ? '2' : '3'}
                               </div>
                               <div className="text-xs text-gray-500">
-                                {hp.goals > 0 && `${hp.goals}${hp.position === 'G' ? 'GA' : 'G'}`}
+                                {hp.position === 'G'
+                                  ? `${hp.goals > 0 ? `${hp.goals}GA` : ''}${hp.goals > 0 && hp.goals_scored > 0 ? ' ' : ''}${hp.goals_scored > 0 ? `${hp.goals_scored}G` : ''}`
+                                  : hp.goals > 0 && `${hp.goals}G`}
                               </div>
                             </>
                           )}
