@@ -3,7 +3,7 @@ import db from './db';
 // Skins rules:
 //   Forward goal   = 1 skin
 //   Defense goal   = 2 skins
-//   Goalie         = 2 skins base, -1 per goal against (hp.goals = goals against)
+//   Goalie         = 3 skins base, -1 per goal against (hp.goals = goals against)
 //   Win pick       = 2 skins if Wild wins
 export function computeSkinsForPick(
   pick: { is_win_pick: number | boolean; hockey_player_id: number | null },
@@ -16,7 +16,7 @@ export function computeSkinsForPick(
   if (!hockeyPlayer) return 0;
   if (hockeyPlayer.position === 'F') return hockeyPlayer.goals;
   if (hockeyPlayer.position === 'D') return hockeyPlayer.goals * 2;
-  if (hockeyPlayer.position === 'G') return Math.max(0, 2 - hockeyPlayer.goals);
+  if (hockeyPlayer.position === 'G') return Math.max(0, 3 - hockeyPlayer.goals);
   return 0;
 }
 

@@ -98,17 +98,12 @@ export default function GamePage() {
 
   const startDraft = async () => {
     try {
-      const shuffledPlayers = [...players].sort(() => Math.random() - 0.5);
-      const order = shuffledPlayers.map(p => p.id);
-
       const res = await fetch('/api/games', {
         method: 'PUT',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           id: Number(gameId),
           status: 'drafting',
-          draft_order: JSON.stringify(order),
-          current_pick_index: 0,
         }),
       });
       if (!res.ok) {
@@ -368,7 +363,7 @@ export default function GamePage() {
     } else if (hockeyPlayer.position === 'D') {
       return hockeyPlayer.goals * 2;
     } else if (hockeyPlayer.position === 'G') {
-      return Math.max(0, 2 - hockeyPlayer.goals);
+      return Math.max(0, 3 - hockeyPlayer.goals);
     }
     return 0;
   };
@@ -755,7 +750,7 @@ export default function GamePage() {
                           ) : (
                             <>
                               <div className="text-2xl font-bold">
-                                {taken ? <span className="text-sm text-gray-500">TAKEN</span> : hp.position === 'F' ? '1' : '2'}
+                                {taken ? <span className="text-sm text-gray-500">TAKEN</span> : hp.position === 'F' ? '1' : hp.position === 'D' ? '2' : '3'}
                               </div>
                               <div className="text-xs text-gray-500">
                                 {hp.goals > 0 && `${hp.goals}${hp.position === 'G' ? 'GA' : 'G'}`}

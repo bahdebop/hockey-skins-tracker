@@ -103,7 +103,7 @@ export async function POST(request: NextRequest) {
     const initialSkinsFor = (hpId: number | null, isWin: boolean) => {
       if (isWin || !hpId) return 0;
       const hp: any = db.prepare('SELECT position FROM hockey_players WHERE id = ?').get(hpId);
-      return hp?.position === 'G' ? 2 : 0;
+      return hp?.position === 'G' ? 3 : 0;
     };
 
     const validateTarget = (): NextResponse | null => {

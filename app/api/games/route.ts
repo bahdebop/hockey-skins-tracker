@@ -109,6 +109,34 @@ export async function PUT(request: NextRequest) {
     if (draft_order !== undefined) {
       updates.push('draft_order = ?');
       params.push(draft_order);
+    } else if (status === 'drafting' && existingGame.status !== 'drafting') {
+      // Rotating draft order: whoever picked first last game goes last
+      // this game; everyone else moves up one spot. First game ever
+      // falls back to a random order. New players join at the end.
+      const prev: any = db.prepare(`
+        SELECT draft_order FROM games
+        WHERE id != ? AND draft_order IS NOT NULL AND draft_order != ''
+        ORDER BY id DESC LIMIT 1
+      `).get(id);
+      const currentIds = (db.prepare('SELECT id FROM players').all() as { id: number }[]).map(r => r.id);
+
+      let order: number[];
+      if (prev) {
+        const prevOrder: number[] = JSON.parse(prev.draft_order);
+        order = [...prevOrder.slice(1), prevOrder[0]].filter(pid => currentIds.includes(pid));
+        for (const pid of currentIds) {
+          if (!order.includes(pid)) order.push(pid);
+        }
+      } else {
+        order = [...currentIds].sort(() => Math.random() - 0.5);
+      }
+
+      updates.push('draft_order = ?');
+      params.push(JSON.stringify(order));
+      if (current_pick_index === undefined) {
+        updates.push('current_pick_index = ?');
+        params.push(0);
+      }
     }
     if (current_pick_index !== undefined) {
       updates.push('current_pick_index = ?');
@@ -147,8 +175,9 @@ export async function PUT(request: NextRequest) {
         url: '/balance',
         tag: `game-final-${id}`,
       });
-    } else if (status === 'drafting' && draft_order !== undefined) {
-      const order: number[] = JSON.parse(draft_order);
+    } else if (status === 'drafting' && existingGame.status !== 'drafting') {
+      const updated: any = db.prepare('SELECT draft_order FROM games WHERE id = ?').get(id);
+      const order: number[] = JSON.parse(updated?.draft_order || '[]');
       if (order.length > 0) {
         sendPushToPlayers([order[0]], {
           title: 'Draft started — you pick first!',

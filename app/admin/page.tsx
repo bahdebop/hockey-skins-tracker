@@ -322,7 +322,7 @@ export default function AdminPage() {
                 </div>
                 <div className="flex justify-between">
                   <span>Goalie (base):</span>
-                  <span className="font-semibold text-white">2 skins (-1 per goal)</span>
+                  <span className="font-semibold text-white">3 skins (-1 per goal)</span>
                 </div>
                 <div className="flex justify-between">
                   <span>Win Pick:</span>

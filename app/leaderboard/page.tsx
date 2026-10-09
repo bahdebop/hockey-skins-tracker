@@ -184,7 +184,7 @@ export default function LeaderboardPage() {
             <div className="space-y-2">
               <div className="flex justify-between">
                 <span className="text-gray-400">Goalie (base):</span>
-                <span className="font-semibold">2 skins (-1 per goal)</span>
+                <span className="font-semibold">3 skins (-1 per goal)</span>
               </div>
               <div className="flex justify-between">
                 <span className="text-gray-400">Win Pick:</span>

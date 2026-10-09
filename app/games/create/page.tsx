@@ -181,7 +181,7 @@ export default function CreateGamePage() {
               <ul className="text-sm text-gray-400 space-y-1">
                 <li>• Forward goal = 1 skin</li>
                 <li>• Defenseman goal = 2 skins</li>
-                <li>• Goalie starts at 2 skins (-1 per goal allowed)</li>
+                <li>• Goalie starts at 3 skins (-1 per goal allowed)</li>
                 <li>• Win pick = 2 skins</li>
                 <li>• Draft order rotates (pick 1 → last next game)</li>
               </ul>
