@@ -6,6 +6,20 @@ import { Calendar, DollarSign, Users, ArrowLeft } from 'lucide-react';
 import Link from 'next/link';
 import { Player } from '@/lib/types';
 
+// Every NHL team except the Wild (always the home side of the skins pool)
+const NHL_TEAMS = [
+  'Anaheim Ducks', 'Boston Bruins', 'Buffalo Sabres', 'Calgary Flames',
+  'Carolina Hurricanes', 'Chicago Blackhawks', 'Colorado Avalanche',
+  'Columbus Blue Jackets', 'Dallas Stars', 'Detroit Red Wings',
+  'Edmonton Oilers', 'Florida Panthers', 'Los Angeles Kings',
+  'Montreal Canadiens', 'Nashville Predators', 'New Jersey Devils',
+  'New York Islanders', 'New York Rangers', 'Ottawa Senators',
+  'Philadelphia Flyers', 'Pittsburgh Penguins', 'San Jose Sharks',
+  'Seattle Kraken', 'St. Louis Blues', 'Tampa Bay Lightning',
+  'Toronto Maple Leafs', 'Utah Mammoth', 'Vancouver Canucks',
+  'Vegas Golden Knights', 'Washington Capitals', 'Winnipeg Jets',
+];
+
 export default function CreateGamePage() {
   const router = useRouter();
   const [players, setPlayers] = useState<Player[]>([]);
@@ -91,14 +105,19 @@ export default function CreateGamePage() {
                   Opponent
                 </div>
               </label>
-              <input
-                type="text"
+              <select
                 required
                 value={formData.opponent}
                 onChange={(e) => setFormData({ ...formData, opponent: e.target.value })}
-                placeholder="e.g., Colorado Avalanche"
-                className="w-full px-4 py-3 bg-gray-900/50 border border-gray-700 rounded-lg focus:outline-none focus:ring-2 focus:ring-green-500 text-white placeholder-gray-500"
-              />
+                className="w-full px-4 py-3 bg-gray-900/50 border border-gray-700 rounded-lg focus:outline-none focus:ring-2 focus:ring-green-500 text-white"
+              >
+                <option value="">Select opponent</option>
+                {NHL_TEAMS.map((team) => (
+                  <option key={team} value={team}>
+                    {team}
+                  </option>
+                ))}
+              </select>
             </div>
 
             <div className="grid md:grid-cols-2 gap-4">
