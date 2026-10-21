@@ -39,6 +39,11 @@ export default function GamePage() {
       try {
         const message = JSON.parse(event.data);
         
+        if (message.event === 'score_sync') {
+          fetchGameData();
+          return;
+        }
+
         if (message.event === 'goal_scored') {
           // Show notification
           setNotification({
@@ -67,6 +72,27 @@ export default function GamePage() {
       eventSource.close();
     };
   }, [gameId]);
+
+  // NHL auto-sync: while a game is ready/in_progress, reconcile scores
+  // from the NHL feed every 45s (server throttles to 20s).
+  useEffect(() => {
+    if (!game || !['ready', 'in_progress'].includes(game.status)) return;
+    if (!user) return;
+
+    const sync = () => {
+      fetch('/api/nhl/sync', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ game_id: Number(gameId) }),
+      })
+        .then(() => fetchGameData())
+        .catch(() => {});
+    };
+
+    sync();
+    const interval = setInterval(sync, 45000);
+    return () => clearInterval(interval);
+  }, [game?.status, !!user, gameId]);
 
   const fetchGameData = async () => {
     try {
@@ -456,11 +482,11 @@ export default function GamePage() {
                   <span>Period {game.period}</span>
                 )}
               </div>
-              {game.last_updated_by_name && game.score_updated_at && (
-                <div className="text-center text-xs text-gray-500 mt-2">
-                  Last update: {game.last_updated_by_name} at {new Date(game.score_updated_at + 'Z').toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit' })}
-                </div>
-              )}
+              <div className="text-center text-xs text-gray-500 mt-2">
+                {game.last_updated_by_name && game.score_updated_at
+                  ? `Last update: ${game.last_updated_by_name} at ${new Date(game.score_updated_at + 'Z').toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit' })}`
+                  : 'Scores auto-synced from NHL.com (~45s behind live)'}
+              </div>
 
               {canEditScore && (
                 <div className="mt-4 pt-4 border-t border-gray-800 space-y-3">
