@@ -150,8 +150,8 @@ export async function PUT(request: NextRequest) {
       const pickers = (db.prepare('SELECT DISTINCT player_id FROM picks WHERE game_id = ?').all(id) as { player_id: number }[])
         .map(r => r.player_id);
       sendPushToPlayers(pickers, {
-        title: 'Game final — balances settled',
-        body: `MIN ${wild_score ?? existingGame.wild_score} - ${opponent_score ?? existingGame.opponent_score} vs ${existingGame.opponent}. Check what you're owed.`,
+        title: 'Game final — skins tallied',
+        body: `MIN ${wild_score ?? existingGame.wild_score} - ${opponent_score ?? existingGame.opponent_score} vs ${existingGame.opponent}. Accruing toward the next payout.`,
         url: '/balance',
         tag: `game-final-${id}`,
       });

@@ -133,8 +133,8 @@ export async function syncGameFromNhl(gameId: number): Promise<{ synced: boolean
     const pickers = (db.prepare('SELECT DISTINCT player_id FROM picks WHERE game_id = ?').all(gameId) as { player_id: number }[])
       .map(r => r.player_id);
     sendPushToPlayers(pickers, {
-      title: 'Game final — balances settled',
-      body: `MIN ${wildScore} - ${oppScore} vs ${game.opponent}. Check what you're owed.`,
+      title: 'Game final — skins tallied',
+      body: `MIN ${wildScore} - ${oppScore} vs ${game.opponent}. Accruing toward the next payout.`,
       url: '/balance',
       tag: `game-final-${gameId}`,
     });

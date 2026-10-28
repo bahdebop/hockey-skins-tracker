@@ -1,5 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import db from '@/lib/db';
+import { getCurrentUser, isAdmin } from '@/lib/auth';
+import { syncBatchStatus } from '@/lib/payout';
 
 export async function GET(request: NextRequest) {
   try {
@@ -37,13 +39,19 @@ export async function GET(request: NextRequest) {
 
 export async function POST(request: NextRequest) {
   try {
+    const user = await getCurrentUser();
+    if (!user) {
+      return NextResponse.json({ error: 'You must be logged in' }, { status: 401 });
+    }
     const body = await request.json();
     const { from_player_id, to_player_id, amount, game_id } = body;
 
+    // Manual entries are settlement records (money that moved outside a
+    // batch) — they land already paid and net into the next calculation.
     const result = db.prepare(`
-      INSERT INTO payments (from_player_id, to_player_id, amount, game_id)
-      VALUES (?, ?, ?, ?)
-    `).run(from_player_id, to_player_id, amount, game_id || null);
+      INSERT INTO payments (from_player_id, to_player_id, amount, game_id, paid, paid_at, marked_by)
+      VALUES (?, ?, ?, ?, 1, CURRENT_TIMESTAMP, ?)
+    `).run(from_player_id, to_player_id, amount, game_id || null, user.userId);
 
     const payment = db.prepare('SELECT * FROM payments WHERE id = ?').get(result.lastInsertRowid);
     return NextResponse.json(payment);
@@ -55,11 +63,15 @@ export async function POST(request: NextRequest) {
 
 export async function PUT(request: NextRequest) {
   try {
+    const user = await getCurrentUser();
+    if (!user) {
+      return NextResponse.json({ error: 'You must be logged in' }, { status: 401 });
+    }
     const body = await request.json();
     const { id, paid } = body;
 
-    const updates: string[] = ['paid = ?'];
-    const params: any[] = [paid ? 1 : 0];
+    const updates: string[] = ['paid = ?', 'marked_by = ?'];
+    const params: any[] = [paid ? 1 : 0, user.userId];
 
     if (paid) {
       updates.push('paid_at = CURRENT_TIMESTAMP');
@@ -70,7 +82,9 @@ export async function PUT(request: NextRequest) {
     params.push(id);
 
     db.prepare(`UPDATE payments SET ${updates.join(', ')} WHERE id = ?`).run(...params);
-    const payment = db.prepare('SELECT * FROM payments WHERE id = ?').get(id);
+    const payment: any = db.prepare('SELECT * FROM payments WHERE id = ?').get(id);
+
+    if (payment?.batch_id) syncBatchStatus(payment.batch_id);
 
     return NextResponse.json(payment);
   } catch (error) {
@@ -81,6 +95,10 @@ export async function PUT(request: NextRequest) {
 
 export async function DELETE(request: NextRequest) {
   try {
+    const user = await getCurrentUser();
+    if (!user || !isAdmin(user.userId)) {
+      return NextResponse.json({ error: 'Admin only' }, { status: 403 });
+    }
     const { searchParams } = new URL(request.url);
     const id = searchParams.get('id');
 

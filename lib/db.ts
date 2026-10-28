@@ -197,12 +197,42 @@ function initializeDatabase() {
     const gameMigrations: [string, string][] = [
       ['last_updated_by', 'INTEGER'],
       ['score_updated_at', 'DATETIME'],
+      ['settled_batch_id', 'INTEGER'],
     ];
     for (const [col, def] of gameMigrations) {
       if (!gameCols.has(col)) {
         sqlite.exec(`ALTER TABLE games ADD COLUMN ${col} ${def}`);
       }
     }
+
+    const paymentCols = new Set(
+      (sqlite.prepare('PRAGMA table_info(payments)').all() as { name: string }[]).map(c => c.name)
+    );
+    const paymentMigrations: [string, string][] = [
+      ['batch_id', 'INTEGER'],
+      ['marked_by', 'INTEGER'],
+    ];
+    for (const [col, def] of paymentMigrations) {
+      if (!paymentCols.has(col)) {
+        sqlite.exec(`ALTER TABLE payments ADD COLUMN ${col} ${def}`);
+      }
+    }
+
+    sqlite.exec(`
+      CREATE TABLE IF NOT EXISTS payout_batches (
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        created_by INTEGER NOT NULL,
+        status TEXT NOT NULL DEFAULT 'open',
+        created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+        closed_at DATETIME,
+        FOREIGN KEY (created_by) REFERENCES players(id)
+      )
+    `);
+
+    // Legacy: unpaid per-game payment rows were computed artifacts. The
+    // first payout batch regenerates them globally; paid rows stay as
+    // settlement records so nobody re-pays what they already paid.
+    sqlite.exec('DELETE FROM payments WHERE paid = 0 AND batch_id IS NULL');
 
     const hpCols = new Set(
       (sqlite.prepare('PRAGMA table_info(hockey_players)').all() as { name: string }[]).map(c => c.name)

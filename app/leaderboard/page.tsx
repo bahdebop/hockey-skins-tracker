@@ -121,7 +121,7 @@ export default function LeaderboardPage() {
 
                     <div className="flex-1">
                       <h3 className="text-xl font-bold mb-1">{player.player_name}</h3>
-                      <div className="grid grid-cols-2 md:grid-cols-4 gap-4 text-sm">
+                      <div className="grid grid-cols-2 md:grid-cols-3 gap-4 text-sm">
                         <div>
                           <div className="text-gray-400">Total Skins</div>
                           <div className="text-lg font-bold text-green-400">
@@ -129,16 +129,26 @@ export default function LeaderboardPage() {
                           </div>
                         </div>
                         <div>
-                          <div className="text-gray-400">Games Played</div>
-                          <div className="text-lg font-bold">{player.games_played}</div>
+                          <div className="text-gray-400">Avg Skin Value</div>
+                          <div className="text-lg font-bold">
+                            ${player.avg_skin_value.toFixed(2)}
+                          </div>
                         </div>
                         <div>
-                          <div className="text-gray-400">Avg Skins/Game</div>
-                          <div className="text-lg font-bold">
-                            {player.games_played > 0
-                              ? (player.total_skins / player.games_played).toFixed(1)
-                              : '0.0'}
+                          <div className="text-gray-400">Total Won</div>
+                          <div className="text-lg font-bold text-green-400">
+                            ${player.total_won.toFixed(2)}
                           </div>
+                        </div>
+                        <div>
+                          <div className="text-gray-400">Total Spent</div>
+                          <div className="text-lg font-bold">
+                            ${player.total_spent.toFixed(2)}
+                          </div>
+                        </div>
+                        <div>
+                          <div className="text-gray-400">Games Played</div>
+                          <div className="text-lg font-bold">{player.games_played}</div>
                         </div>
                         <div>
                           <div className="text-gray-400">Net Balance</div>

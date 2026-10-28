@@ -43,6 +43,7 @@ export async function GET(request: NextRequest) {
         games_played: gamesPlayed,
         total_spent: Math.round(totalSpent * 100) / 100,
         total_won: Math.round(totalWon * 100) / 100,
+        avg_skin_value: totalSkins > 0 ? Math.round((totalWon / totalSkins) * 100) / 100 : 0,
         net_balance: Math.round((totalWon - totalSpent) * 100) / 100,
       };
     });

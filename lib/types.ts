@@ -61,9 +61,21 @@ export interface Payment {
   to_player_id: number;
   amount: number;
   game_id?: number;
+  batch_id?: number;
+  marked_by?: number;
   paid: boolean;
   paid_at?: string;
   created_at: string;
+}
+
+export interface PayoutBatch {
+  id: number;
+  created_by: number;
+  created_by_name?: string;
+  status: 'open' | 'closed';
+  created_at: string;
+  closed_at?: string;
+  transfers?: Payment[];
 }
 
 export interface SeasonStats {
@@ -73,5 +85,6 @@ export interface SeasonStats {
   games_played: number;
   total_spent: number;
   total_won: number;
+  avg_skin_value: number;
   net_balance: number;
 }
