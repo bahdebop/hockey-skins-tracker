@@ -240,6 +240,9 @@ function initializeDatabase() {
     if (!hpCols.has('goals_scored')) {
       sqlite.exec('ALTER TABLE hockey_players ADD COLUMN goals_scored INTEGER DEFAULT 0');
     }
+    if (!hpCols.has('gwg')) {
+      sqlite.exec('ALTER TABLE hockey_players ADD COLUMN gwg INTEGER DEFAULT 0');
+    }
 
     sqlite.exec(`
       CREATE TABLE IF NOT EXISTS push_subscriptions (

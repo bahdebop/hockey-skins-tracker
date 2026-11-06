@@ -58,7 +58,7 @@ export async function PUT(request: NextRequest) {
     }
 
     const body = await request.json();
-    const { id, goals, goals_scored } = body;
+    const { id, goals, goals_scored, gwg } = body;
 
     // Get old goals count for comparison
     const oldPlayer: any = db.prepare('SELECT * FROM hockey_players WHERE id = ?').get(id);
@@ -73,11 +73,20 @@ export async function PUT(request: NextRequest) {
       return NextResponse.json({ error: 'Scoring is only open while the game is in progress' }, { status: 403 });
     }
 
+    if (gwg !== undefined && !isAdmin(user.userId)) {
+      return NextResponse.json({ error: 'Only admins can mark the GWG scorer' }, { status: 403 });
+    }
+
     if (goals !== undefined) {
       db.prepare('UPDATE hockey_players SET goals = ? WHERE id = ?').run(goals, id);
     }
     if (goals_scored !== undefined) {
       db.prepare('UPDATE hockey_players SET goals_scored = ? WHERE id = ?').run(goals_scored, id);
+    }
+    if (gwg !== undefined) {
+      // One GWG scorer per game — setting it clears every other flag
+      db.prepare('UPDATE hockey_players SET gwg = CASE WHEN id = ? THEN ? ELSE 0 END WHERE game_id = ?')
+        .run(id, gwg ? 1 : 0, oldPlayer.game_id);
     }
     const player: any = db.prepare('SELECT * FROM hockey_players WHERE id = ?').get(id);
 
@@ -113,6 +122,18 @@ export async function PUT(request: NextRequest) {
         goalDiff,
         skinsChange: goalDiff * 2,
         kind: 'goalie_goal',
+        timestamp: Date.now(),
+      });
+    }
+    if (player && gwg && !oldPlayer.gwg) {
+      eventManager.broadcast(player.game_id.toString(), 'goal_scored', {
+        playerId: player.id,
+        playerName: player.name,
+        position: player.position,
+        goals: player.goals,
+        goalDiff: 0,
+        skinsChange: 1,
+        kind: 'gwg',
         timestamp: Date.now(),
       });
     }

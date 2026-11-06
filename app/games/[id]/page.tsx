@@ -385,14 +385,34 @@ export default function GamePage() {
   };
 
   const calculateSkins = (hockeyPlayer: HockeyPlayer) => {
+    const gwg = hockeyPlayer.gwg ? 1 : 0;
     if (hockeyPlayer.position === 'F') {
-      return hockeyPlayer.goals;
+      return hockeyPlayer.goals + gwg;
     } else if (hockeyPlayer.position === 'D') {
-      return hockeyPlayer.goals * 2;
+      return hockeyPlayer.goals * 2 + gwg;
     } else if (hockeyPlayer.position === 'G') {
-      return Math.max(0, 3 - hockeyPlayer.goals) + (hockeyPlayer.goals_scored || 0) * 2;
+      return Math.max(0, 3 - hockeyPlayer.goals) + (hockeyPlayer.goals_scored || 0) * 2 + gwg;
     }
     return 0;
+  };
+
+  const toggleGwg = async (hockeyPlayerId: number, current: number) => {
+    try {
+      const res = await fetch('/api/hockey-players', {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ id: hockeyPlayerId, gwg: current ? 0 : 1 }),
+      });
+      if (!res.ok) {
+        const err = await res.json().catch(() => ({}));
+        alert(err.error || 'Failed to update GWG');
+        return;
+      }
+      fetchGameData();
+    } catch (error) {
+      console.error('Error updating GWG:', error);
+      alert('Failed to update GWG');
+    }
   };
 
   if (loading) {
@@ -744,6 +764,22 @@ export default function GamePage() {
                             {hp.name}
                             {hp.jersey_number && (
                               <span className="text-gray-500 ml-2">#{hp.jersey_number}</span>
+                            )}
+                            {!!hp.gwg && (
+                              <span className="ml-2 text-xs bg-yellow-500/20 text-yellow-400 border border-yellow-500/40 rounded px-1.5 py-0.5">GWG +1</span>
+                            )}
+                            {user?.is_admin && (game.status === 'in_progress' || game.status === 'final') && (
+                              <button
+                                onClick={(e) => { e.stopPropagation(); toggleGwg(hp.id, hp.gwg || 0); }}
+                                title={hp.gwg ? 'Remove game-winning goal mark' : 'Mark as game-winning goal scorer'}
+                                className={`ml-2 text-xs border rounded px-1.5 py-0.5 transition-colors ${
+                                  hp.gwg
+                                    ? 'border-yellow-500/40 text-yellow-400 hover:bg-yellow-500/10'
+                                    : 'border-gray-600 text-gray-500 hover:text-yellow-400 hover:border-yellow-500/40'
+                                }`}
+                              >
+                                GWG
+                              </button>
                             )}
                           </div>
                           <div className={`text-sm font-medium ${getPositionColor(hp.position)}`}>

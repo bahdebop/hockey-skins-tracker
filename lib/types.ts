@@ -40,6 +40,7 @@ export interface HockeyPlayer {
   jersey_number?: number;
   goals: number;          // skaters: goals scored. goalies: goals allowed
   goals_scored: number;   // goalies only: goals they scored themselves
+  gwg?: number;           // 1 = scored the game-winning goal (+1 skin)
   created_at: string;
 }
 

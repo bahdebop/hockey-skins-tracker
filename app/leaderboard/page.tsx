@@ -200,6 +200,10 @@ export default function LeaderboardPage() {
                 <span className="text-gray-400">Win Pick:</span>
                 <span className="font-semibold">2 skins</span>
               </div>
+              <div className="flex justify-between">
+                <span className="text-gray-400">Game-Winning Goal:</span>
+                <span className="font-semibold">+1 skin (incl. SO decider)</span>
+              </div>
             </div>
           </div>
         </div>

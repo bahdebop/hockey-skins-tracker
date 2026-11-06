@@ -76,11 +76,12 @@ export async function syncGameFromNhl(gameId: number): Promise<{ synced: boolean
   const oppScore = isMinAway ? data.homeTeam?.score : data.awayTeam?.score;
   const period = data.displayPeriod || data.periodDescriptor?.number || 0;
 
-  // Tally goals per NHL player id; GA per goalie id
+  // Tally goals per NHL player id; GA per goalie id. Shootout-period
+  // goals don't count in player stats — they're handled as GWG below.
   const scorers = new Map<string, number>();
   const ga = new Map<string, number>();
   for (const play of data.plays || []) {
-    if (play.typeDescKey !== 'goal') continue;
+    if (play.typeDescKey !== 'goal' || play.periodDescriptor?.periodType === 'SO') continue;
     const d = play.details || {};
     if (d.eventOwnerTeamId === minTeamId) {
       if (d.scoringPlayerId) scorers.set(String(d.scoringPlayerId), (scorers.get(String(d.scoringPlayerId)) || 0) + 1);
@@ -113,6 +114,44 @@ export async function syncGameFromNhl(gameId: number): Promise<{ synced: boolean
     if (newGoals !== hp.goals || newScored !== (hp.goals_scored || 0)) {
       db.prepare('UPDATE hockey_players SET goals = ?, goals_scored = ? WHERE id = ?')
         .run(newGoals, newScored, hp.id);
+    }
+  }
+
+  // Derive the game-winning goal once the game is over:
+  //   regulation/OT — the winning team's (loser score + 1)th goal
+  //   shootout      — the last SO-period goal scored by the winner
+  if (data.gameState === 'OFF' && wildScore !== undefined && oppScore !== undefined && wildScore !== oppScore) {
+    const winnerTeamId = wildScore > oppScore
+      ? minTeamId
+      : (isMinAway ? data.homeTeam?.id : data.awayTeam?.id);
+    const isGoalBy = (p: any, teamId: number, so: boolean) =>
+      p.typeDescKey === 'goal' &&
+      (p.periodDescriptor?.periodType === 'SO') === so &&
+      p.details?.eventOwnerTeamId === teamId &&
+      p.details?.scoringPlayerId;
+
+    let gwgScorerId: string | null = null;
+    if (data.gameOutcome?.lastPeriodType === 'SO') {
+      const soGoals = (data.plays || []).filter((p: any) => isGoalBy(p, winnerTeamId, true));
+      gwgScorerId = soGoals[soGoals.length - 1]?.details?.scoringPlayerId ?? null;
+    } else {
+      const loserScore = Math.min(wildScore, oppScore);
+      const winnerGoals = (data.plays || []).filter((p: any) => isGoalBy(p, winnerTeamId, false));
+      gwgScorerId = winnerGoals[loserScore]?.details?.scoringPlayerId ?? null;
+    }
+
+    if (gwgScorerId) {
+      const gwgPlayer: any = db.prepare(
+        'SELECT * FROM hockey_players WHERE game_id = ? AND nhl_player_id = ?'
+      ).get(gameId, String(gwgScorerId));
+      if (gwgPlayer && !gwgPlayer.gwg) {
+        db.prepare('UPDATE hockey_players SET gwg = CASE WHEN id = ? THEN 1 ELSE 0 END WHERE game_id = ?')
+          .run(gwgPlayer.id, gameId);
+        eventManager.broadcast(String(gameId), 'goal_scored', {
+          playerId: gwgPlayer.id, playerName: gwgPlayer.name, position: gwgPlayer.position,
+          goals: gwgPlayer.goals, goalDiff: 0, skinsChange: 1, kind: 'gwg', timestamp: Date.now(),
+        });
+      }
     }
   }
 
